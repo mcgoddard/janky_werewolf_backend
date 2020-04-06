@@ -270,6 +270,7 @@ dependencies = [
  "lambda_runtime",
  "log",
  "openssl",
+ "rand 0.7.3",
  "rusoto_apigatewaymanagementapi",
  "rusoto_core 0.38.0",
  "rusoto_dynamodb 0.43.0",

@@ -5,6 +5,7 @@ extern crate serde_derive;
 #[macro_use]
 extern crate log;
 extern crate simple_logger;
+extern crate rand;
 
 use lambda::error::HandlerError;
 
@@ -12,7 +13,6 @@ use std;
 use std::{cell::RefCell, env};
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
-
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
@@ -26,6 +26,7 @@ use dynomite::{
     },
 };
 use futures::Future;
+use rand::Rng;
 use rusoto_core::{RusotoError, Region};
 use tokio::runtime::Runtime;
 use serde_json::json;
@@ -81,7 +82,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
     }
 
     match p.code {
-        None => new_game(e, p.name, p.secret, "AAAA".to_string()),
+        None => new_game(e, p.name, p.secret),
         _ => (), // Some(c)
     };
 
@@ -108,8 +109,13 @@ fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
     }
 }
 
-fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret: String, code: String) {
+fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret: String) {
     let table_name = env::var("tableName").unwrap();
+
+    let mut rng = rand::thread_rng();
+    let valid_code_chars = vec!["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+    let code: String = (0..4).map(|_| valid_code_chars[rng.gen_range(0, 26) as usize].clone()).collect();
+
     let item = types::GameState {
         lobby_id: code,
         phase: types::Phase {
