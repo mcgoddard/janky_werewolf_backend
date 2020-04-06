@@ -4,7 +4,7 @@ clean_connect:
 	$(MAKE) -C connect_lambda clean
 
 build_connect:
-	$(MAKE) -C connect_lambda lambda
+	$(MAKE) -C connect_lambda build
 
 deploy: export AWS_PROFILE = jankywerewolf_admin
 deploy: build_connect

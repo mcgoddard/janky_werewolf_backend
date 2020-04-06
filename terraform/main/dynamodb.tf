@@ -9,4 +9,9 @@ resource "aws_dynamodb_table" "janky-werewolf-table" {
     name = "lobby_id"
     type = "S"
   }
+
+  ttl {
+    attribute_name = "ttl"
+    enabled        = true
+  }
 }

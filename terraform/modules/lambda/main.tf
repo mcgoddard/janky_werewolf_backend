@@ -13,6 +13,12 @@ resource "aws_lambda_function" "lambda" {
   role    = var.iam_role_arn
   handler = "${var.lambda_name}.lambda_handler"
   runtime = "provided"
+
+  environment {
+    variables = {
+      tableName = "janky-werewolf-table"
+    }
+  }
 }
 
 resource "aws_lambda_permission" "apigw_lambda" {

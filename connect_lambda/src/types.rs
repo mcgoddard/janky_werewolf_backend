@@ -8,7 +8,7 @@ use serde_json::Value;
 use aws_lambda_events::event::apigw::ApiGatewayRequestIdentity;
 
 #[derive(Deserialize, Serialize, Clone)]
-enum PlayerRole {
+pub enum PlayerRole {
     Unknown,
     Villager,
     Seer,
@@ -37,7 +37,7 @@ impl PlayerRole {
 }
 
 #[derive(Deserialize, Serialize, Clone)]
-enum PlayerTeam {
+pub enum PlayerTeam {
     Unknown,
     Good,
     Evil,

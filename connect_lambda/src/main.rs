@@ -11,18 +11,22 @@ use lambda::error::HandlerError;
 use std;
 use std::{cell::RefCell, env};
 use std::error::Error;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
+use rusoto_apigatewaymanagementapi::{
+    ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
+};
 
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemError, PutItemInput,
+        DynamoDb, DynamoDbClient, PutItemError, PutItemInput, AttributeValue
     },
 };
 use futures::Future;
-use rusoto_core::RusotoError;
+use rusoto_core::{RusotoError, Region};
 use tokio::runtime::Runtime;
 use serde_json::json;
 
@@ -63,7 +67,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
-    let body = e.body.unwrap();
+    let body = e.body.clone().unwrap();
     print!("{:?}", body);
     let p: ConnectEvent = serde_json::from_str(&body).unwrap();
     
@@ -77,7 +81,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
     }
 
     match p.code {
-        None => new_game(p.name, p.secret, "AAAA".to_string(), e.request_context.connection_id.unwrap()),
+        None => new_game(e, p.name, p.secret, "AAAA".to_string()),
         _ => (), // Some(c)
     };
 
@@ -90,7 +94,21 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
     })
 }
 
-fn new_game(name: String, secret: String, code: String, connection_id: String) {
+fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
+    match &ctx.domain_name {
+        Some(domain) => (
+            match &ctx.stage {
+                Some(stage) => (
+                    format!("https://{}/{}", domain, stage)
+                ),
+                None => panic!("No stage on request context"),
+            }
+        ),
+        None => panic!("No domain on request context"),
+    }
+}
+
+fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret: String, code: String) {
     let table_name = env::var("tableName").unwrap();
     let item = types::GameState {
         lobby_id: code,
@@ -99,19 +117,36 @@ fn new_game(name: String, secret: String, code: String, connection_id: String) {
             data: HashMap::new(),
         },
         players: vec![types::Player{
-            id: connection_id,
+            id: event.request_context.connection_id.clone().unwrap(),
             name: name,
             secret: secret,
             attributes: None,
         }]
     };
     let mut item_hashmap = HashMap::new();
-    item_hashmap.insert("lobby_id".to_string(), item.lobby_id);
-    item_hashmap.insert("version".to_string(), 1.to_string());
-    item_hashmap.insert("data".to_string(), json!(item).to_string());
+    item_hashmap.insert("lobby_id".to_string(), AttributeValue {
+        s: Some(item.lobby_id.clone()),
+        ..Default::default()
+    });
+    item_hashmap.insert("version".to_string(), AttributeValue {
+        n: Some(1.to_string()),
+        ..Default::default()
+    });
+    let data = json!(item);
+    item_hashmap.insert("data".to_string(), AttributeValue {
+        s: Some(data.to_string()),
+        ..Default::default()
+    });
+    let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH)
+        .expect("Time went backwards");
+    item_hashmap.insert("ttl".to_string(), AttributeValue {
+        n: Some(format!("{}", (since_the_epoch.as_secs() as i32) + (48*60*60))),
+        ..Default::default()
+    });
     let result = DDB.with(|ddb| {
         ddb.put_item(PutItemInput {
             table_name,
+            condition_expression: Some("attribute_not_exists(lobby_id)".to_string()),
             item: item_hashmap,
             ..PutItemInput::default()
         })
@@ -119,7 +154,22 @@ fn new_game(name: String, secret: String, code: String, connection_id: String) {
         .map_err(RequestError::Connect)
     });
 
-    if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        log::error!("failed to perform new game connection operation: {:?}", err);
-    }
+    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
+        Err(err) => {
+            log::error!("failed to perform new game connection operation: {:?}", err);
+            let client = ApiGatewayManagementApiClient::new(Region::Custom {
+                name: Region::EuWest2.name().into(),
+                endpoint: endpoint(&event.request_context),
+            });
+            let result = client.clone().post_to_connection(PostToConnectionRequest {
+                            connection_id: event.request_context.connection_id.unwrap(),
+                            data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
+                        }).sync();
+            match result {
+                Err(e) => print!("{:?}", e),
+                _ => (),
+            }
+        },
+        Ok(_) => (),
+    };
 }
