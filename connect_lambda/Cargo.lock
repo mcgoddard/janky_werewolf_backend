@@ -260,7 +260,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "connect_lambda_function"
+name = "connect_lambda"
 version = "0.1.0"
 dependencies = [
  "aws_lambda_events",

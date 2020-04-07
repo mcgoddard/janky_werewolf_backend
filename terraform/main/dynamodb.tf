@@ -14,4 +14,13 @@ resource "aws_dynamodb_table" "janky-werewolf-table" {
     attribute_name = "ttl"
     enabled        = true
   }
+
+  stream_enabled   = true
+  stream_view_type = "NEW_IMAGE"
+}
+
+resource "aws_lambda_event_source_mapping" "broadcast-state-mapping" {
+  event_source_arn  = aws_dynamodb_table.janky-werewolf-table.stream_arn
+  function_name     = module.broadcast_lambda.lambda_arn
+  starting_position = "LATEST"
 }
