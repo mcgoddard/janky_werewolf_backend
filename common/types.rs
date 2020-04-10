@@ -112,6 +112,50 @@ impl PhaseName {
     }
 }
 
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct StreamRecord {
+    #[serde(rename = "NewImage")]
+    new_image: DdbObject,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct DDBRecord {
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "awsRegion")]
+    aws_region: Option<String>,
+    #[serde(default)]
+    dynamodb: Option<StreamRecord>,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "eventID")]
+    event_id: Option<String>,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "eventName")]
+    event_name: Option<String>,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "eventSource")]
+    event_source: Option<String>,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "eventVersion")]
+    event_version: Option<String>,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(default)]
+    #[serde(rename = "eventSourceARN")]
+    event_source_arn: Option<String>,
+}
+
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct DDBStreamEvent {
+    #[serde(default)]
+    #[serde(rename = "Records")]
+    records: Option<Vec<DDBRecord>>,
+}
+
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Phase {
     pub name: PhaseName,
@@ -124,6 +168,22 @@ pub struct GameState {
     pub lobby_id: String,
     pub phase: Phase,
     pub players: Vec<Player>,
+}
+
+#[derive(Deserialize, Serialize, Clone, Debug)]
+pub struct DdbObject {
+    #[serde(deserialize_with = "deserialize_lambda_map")]
+    #[serde(default)]
+    pub lobby_id: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_lambda_map")]
+    #[serde(default)]
+    pub ttl: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_lambda_map")]
+    #[serde(default)]
+    pub version: HashMap<String, String>,
+    #[serde(deserialize_with = "deserialize_lambda_map")]
+    #[serde(default)]
+    pub data: HashMap<String, String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

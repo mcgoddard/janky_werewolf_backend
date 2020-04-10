@@ -11,7 +11,6 @@ use std::error::Error;
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
-use aws_lambda_events::event::sqs::SqsEvent;
 
 mod types;
 
@@ -22,13 +21,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn my_handler(e: SqsEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+fn my_handler(e: types::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     print!("{:?}", e);
-    // print!("{}", json!(e).to_string());
-    // match &e.records[0].body {
-    //     Some(m) => print!("{:?}", m),
-    //     None => print!("No message..."),
-    // };
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
