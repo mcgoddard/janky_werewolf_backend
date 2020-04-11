@@ -16,9 +16,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
-use rusoto_apigatewaymanagementapi::{
-    ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
-};
 
 use dynomite::{
     dynamodb::{
@@ -27,11 +24,12 @@ use dynomite::{
 };
 use futures::Future;
 use rand::Rng;
-use rusoto_core::{RusotoError, Region};
+use rusoto_core::RusotoError;
 use tokio::runtime::Runtime;
 use serde_json::json;
 
 mod types;
+mod helpers;
 
 thread_local!(
     static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
@@ -174,18 +172,8 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
-            let client = ApiGatewayManagementApiClient::new(Region::Custom {
-                name: Region::EuWest2.name().into(),
-                endpoint: endpoint(&event.request_context),
-            });
-            let result = client.clone().post_to_connection(PostToConnectionRequest {
-                            connection_id: event.request_context.connection_id.unwrap(),
-                            data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
-                        }).sync();
-            match result {
-                Err(e) => error!("{:?}", e),
-                _ => (),
-            }
+            helpers::send_error(format!("Error creating game: {:?}", err),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         },
         Ok(_) => (),
     };
@@ -213,18 +201,8 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
-            let client = ApiGatewayManagementApiClient::new(Region::Custom {
-                name: Region::EuWest2.name().into(),
-                endpoint: endpoint(&event.request_context),
-            });
-            let result = client.clone().post_to_connection(PostToConnectionRequest {
-                            connection_id: event.request_context.connection_id.unwrap(),
-                            data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
-                        }).sync();
-            match result {
-                Err(e) => error!("{:?}", e),
-                _ => (),
-            }
+            helpers::send_error(format!("Lobby not found: {:?}", err),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         },
         Ok(result) => {
             match result {
@@ -233,18 +211,8 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                     match result.item {
                         None => {
                             error!("Lobby not found: {:?}", lobby_id);
-                            let client = ApiGatewayManagementApiClient::new(Region::Custom {
-                                name: Region::EuWest2.name().into(),
-                                endpoint: endpoint(&event.request_context),
-                            });
-                            let result = client.clone().post_to_connection(PostToConnectionRequest {
-                                            connection_id: event.request_context.connection_id.unwrap(),
-                                            data: serde_json::to_vec(&json!({ "message": "Unable to find lobby" })).unwrap_or_default(),
-                                        }).sync();
-                            match result {
-                                Err(e) => error!("{:?}", e),
-                                _ => (),
-                            }
+                            helpers::send_error("Unable to find lobby".to_string(),
+                                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
                         },
                         Some(item) => {
                             let mut data: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
@@ -300,22 +268,12 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                                 .map(drop)
                                 .map_err(RequestError::Connect)
                             });
-                        
+
                             match RT.with(|rt| rt.borrow_mut().block_on(result)) {
                                 Err(err) => {
                                     log::error!("failed to perform new game connection operation: {:?}", err);
-                                    let client = ApiGatewayManagementApiClient::new(Region::Custom {
-                                        name: Region::EuWest2.name().into(),
-                                        endpoint: endpoint(&event.request_context),
-                                    });
-                                    let result = client.clone().post_to_connection(PostToConnectionRequest {
-                                                    connection_id: event.request_context.connection_id.unwrap(),
-                                                    data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
-                                                }).sync();
-                                    match result {
-                                        Err(e) => error!("{:?}", e),
-                                        _ => (),
-                                    }
+                                    helpers::send_error(format!("Error joining game: {:?}", err),
+                                        event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
                                 },
                                 Ok(_) => (),
                             };
