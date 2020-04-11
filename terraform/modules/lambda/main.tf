@@ -16,7 +16,9 @@ resource "aws_lambda_function" "lambda" {
 
   environment {
     variables = {
-      tableName = "janky-werewolf-table"
+      tableName  = "janky-werewolf-table"
+      domainName = var.api_gateway_domain
+      stage      = var.api_gateway_stage
     }
   }
 }

@@ -17,3 +17,13 @@ variable "bin_dir" {
   description = "The bin directory relative path."
   default     = "../.."
 }
+
+variable "api_gateway_domain" {
+  description = "The domain for API gateway that was manually created."
+  default     = "0a4nr0hbsk.execute-api.eu-west-2.amazonaws.com"
+}
+
+variable "api_gateway_stage" {
+  description = "The stage for API gateway."
+  default     = "dev"
+}

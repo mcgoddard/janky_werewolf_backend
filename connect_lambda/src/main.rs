@@ -69,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
-    print!("{:?}", body);
+    info!("{:?}", body);
     let p: ConnectEvent = serde_json::from_str(&body).unwrap();
     
     if p.name == "" {
@@ -172,7 +172,7 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
                             data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
                         }).sync();
             match result {
-                Err(e) => print!("{:?}", e),
+                Err(e) => error!("{:?}", e),
                 _ => (),
             }
         },

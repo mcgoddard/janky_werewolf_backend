@@ -115,7 +115,10 @@ impl PhaseName {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StreamRecord {
     #[serde(rename = "NewImage")]
-    new_image: DdbObject,
+    pub new_image: DdbObject,
+    #[serde(deserialize_with = "deserialize_lambda_string")]
+    #[serde(rename = "StreamViewType")]
+    pub stream_view_type: Option<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -123,29 +126,29 @@ pub struct DDBRecord {
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "awsRegion")]
-    aws_region: Option<String>,
+    pub aws_region: Option<String>,
     #[serde(default)]
-    dynamodb: Option<StreamRecord>,
+    pub dynamodb: Option<StreamRecord>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "eventID")]
-    event_id: Option<String>,
+    pub event_id: Option<String>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "eventName")]
-    event_name: Option<String>,
+    pub event_name: Option<String>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "eventSource")]
-    event_source: Option<String>,
+    pub event_source: Option<String>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "eventVersion")]
-    event_version: Option<String>,
+    pub event_version: Option<String>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(default)]
     #[serde(rename = "eventSourceARN")]
-    event_source_arn: Option<String>,
+    pub event_source_arn: Option<String>,
 }
 
 
@@ -153,7 +156,7 @@ pub struct DDBRecord {
 pub struct DDBStreamEvent {
     #[serde(default)]
     #[serde(rename = "Records")]
-    records: Option<Vec<DDBRecord>>,
+    pub records: Option<Vec<DDBRecord>>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]

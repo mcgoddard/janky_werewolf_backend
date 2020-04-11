@@ -22,3 +22,13 @@ variable "iam_role_arn" {
   description = "The ARN of the IAM role for the lambda to use"
   type        = string
 }
+
+variable "api_gateway_domain" {
+  description = "The domain for API gateway that was manually created."
+  type        = string
+}
+
+variable "api_gateway_stage" {
+  description = "The stage for API gateway."
+  type        = string
+}

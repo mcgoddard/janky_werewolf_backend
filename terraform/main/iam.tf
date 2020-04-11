@@ -52,6 +52,14 @@ resource "aws_iam_policy" "dynamodb_stream_policy" {
             "Resource": [
                 "*"
             ]
+        },
+        {
+          "Action": [
+            "execute-api:ManageConnections",
+            "execute-api:Invoke"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
         }
     ]
 }

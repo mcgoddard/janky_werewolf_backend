@@ -6,6 +6,8 @@ module "connect_lambda" {
   bin_dir            = var.bin_dir
   aws_region         = var.aws_region
   aws_account_id     = var.aws_account_id
+  api_gateway_domain = var.api_gateway_domain
+  api_gateway_stage  = var.api_gateway_stage
 }
 
 module "broadcast_lambda" {
@@ -16,4 +18,6 @@ module "broadcast_lambda" {
   bin_dir            = var.bin_dir
   aws_region         = var.aws_region
   aws_account_id     = var.aws_account_id
+  api_gateway_domain = var.api_gateway_domain
+  api_gateway_stage  = var.api_gateway_stage
 }

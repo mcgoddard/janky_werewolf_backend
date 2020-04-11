@@ -8,9 +8,15 @@ use lambda::error::HandlerError;
 
 use std;
 use std::error::Error;
+use std::env;
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
+use rusoto_apigatewaymanagementapi::{
+    ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
+};
+use rusoto_core::Region;
+use serde_json::json;
 
 mod types;
 
@@ -22,7 +28,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 
 fn my_handler(e: types::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
-    print!("{:?}", e);
+    match e.records {
+        Some(records) => {
+            for record in &records {
+                process_record(record);
+            }
+        },
+        None => log::warn!("No records in event, empty execution..."),
+    }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -31,4 +44,48 @@ fn my_handler(e: types::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewa
         body: None,
         is_base64_encoded: None,
     })
+}
+
+fn process_record(record: &types::DDBRecord) {
+    match &record.dynamodb {
+        Some(stream_record) => {
+            match &stream_record.stream_view_type {
+                Some(s) => {
+                    match s.as_str() {
+                        "NEW_IMAGE" => {
+                            let new_image: types::GameState = serde_json::from_str(&stream_record.new_image.data["S"]).unwrap();
+                            let players = new_image.players.clone();
+                            for player in &players {
+                                broadcast(player, new_image.clone());
+                            }
+                        },
+                        s => log::error!("unable to process stream view: {:?}", s),
+                    }
+                },
+                None => log::error!("unable to process stream view, no type"),
+            }
+        },
+        None => log::warn!("No stream record"),
+    }
+}
+
+fn broadcast(player: &types::Player, game_state: types::GameState) {
+    let client = ApiGatewayManagementApiClient::new(Region::Custom {
+        name: Region::EuWest2.name().into(),
+        endpoint: endpoint(),
+    });
+    let result = client.clone().post_to_connection(PostToConnectionRequest {
+                    connection_id: player.id.clone(),
+                    data: serde_json::to_vec(&json!({ "game_state": game_state.clone() })).unwrap_or_default(),
+                }).sync();
+    match result {
+        Err(e) => log::error!("{:?}", e),
+        _ => (),
+    }
+}
+
+fn endpoint() -> String {
+    let domain_name = env::var("domainName").unwrap();
+    let stage = env::var("stage").unwrap();
+    format!("https://{}/{}", domain_name, stage)
 }
