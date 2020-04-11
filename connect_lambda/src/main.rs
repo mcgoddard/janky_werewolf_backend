@@ -45,6 +45,11 @@ thread_local!(
 #[derive(Deserialize, Serialize, Clone)]
 struct ConnectEvent {
     action: String,
+    data: EventData,
+}
+
+#[derive(Deserialize, Serialize, Clone)]
+struct EventData {
     name: String,
     secret: String,
     code: Option<String>,
@@ -78,18 +83,18 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
     info!("{:?}", body);
     let p: ConnectEvent = serde_json::from_str(&body).unwrap();
     
-    if p.name == "" {
+    if p.data.name == "" {
         error!("Empty name in request {}", c.aws_request_id);
         return Err(c.new_error("Empty first name"));
     }
-    else if p.secret == "" {
+    else if p.data.secret == "" {
         error!("Empty secret in request {}", c.aws_request_id);
         return Err(c.new_error("Empty secret"));
     }
 
-    match p.code {
-        None => new_game(e, p.name, p.secret),
-        Some(c) => join_game(e, p.name, p.secret, c),
+    match p.data.code {
+        None => new_game(e, p.data.name, p.data.secret),
+        Some(c) => join_game(e, p.data.name, p.data.secret, c),
     };
 
     Ok(ApiGatewayProxyResponse {
