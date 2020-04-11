@@ -56,6 +56,11 @@ struct CustomOutput {
 }
 
 #[derive(Debug)]
+enum RequestResult {
+    Get(GetItemOutput),
+}
+
+#[derive(Debug)]
 enum RequestError {
     Connect(RusotoError<PutItemError>),
     Get(RusotoError<GetItemError>),
@@ -84,7 +89,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
 
     match p.code {
         None => new_game(e, p.name, p.secret),
-        Some(c) => join_game(e, p.name, p.secret, p.code.unwrap()),
+        Some(c) => join_game(e, p.name, p.secret, c),
     };
 
     Ok(ApiGatewayProxyResponse {
@@ -192,11 +197,11 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
 
     let result = DDB.with(|ddb| {
         ddb.get_item(GetItemInput {
-            table_name,
+            table_name: table_name.clone(),
             key: ddb_keys,
             ..GetItemInput::default()
         })
-        .map(drop)
+        .map(RequestResult::Get)
         .map_err(RequestError::Get)
     });
 
@@ -217,89 +222,102 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
             }
         },
         Ok(result) => {
-            let result: GetItemOutput = result;
-            match result.item {
-                None => {
-                    error!("Lobby not found: {:?}", lobby_id);
-                    let client = ApiGatewayManagementApiClient::new(Region::Custom {
-                        name: Region::EuWest2.name().into(),
-                        endpoint: endpoint(&event.request_context),
-                    });
-                    let result = client.clone().post_to_connection(PostToConnectionRequest {
-                                    connection_id: event.request_context.connection_id.unwrap(),
-                                    data: serde_json::to_vec(&json!({ "message": "Unable to find lobby" })).unwrap_or_default(),
-                                }).sync();
-                    match result {
-                        Err(e) => error!("{:?}", e),
-                        _ => (),
-                    }
-                },
-                Some(item) => {
-                    let mut data: types::GameState = serde_json::from_str(&item["data"].s.unwrap()).unwrap();
-                    let existing_player = data.players.into_iter().filter(|player| player.name == name).collect();
-                    if existing_player.len() == 1 {
-                        if existing_player[0].secret == secret {
-                            let mut new_players = data.players.retain(|player| player.name != name);
-                            new_players.push(types::Player{
-                                id: event.request_context.connection_id.clone().unwrap(),
-                                name: name,
-                                secret: secret,
-                                attributes: None,
-                            });
-                            data.players = new_players;
-                        }
-                        else {
-                            error!("Non-matching secret for {:?}", name);
-                        }
-                    }
-                    else {
-                        data.players.push(types::Player{
-                            id: event.request_context.connection_id.clone().unwrap(),
-                            name: name,
-                            secret: secret,
-                            attributes: None,
-                        });
-                    }
-                    let mut new_item = item.clone();
-                    new_item["version"] = AttributeValue {
-                        n: Some(format!("{}", new_item["version"].n.unwrap().parse::<i32>().unwrap() + 1)),
-                        ..Default::default()
-                    };
-                    new_item["data"] = AttributeValue {
-                        s: Some(data.to_string()),
-                        ..Default::default()
-                    };
-                    let result = DDB.with(|ddb| {
-                        ddb.put_item(PutItemInput {
-                            table_name,
-                            condition_expression: Some("attribute_not_exists(lobby_id)".to_string()),
-                            item: new_item,
-                            ..PutItemInput::default()
-                        })
-                        .map(drop)
-                        .map_err(RequestError::Connect)
-                    });
-                
-                    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
-                        Err(err) => {
-                            log::error!("failed to perform new game connection operation: {:?}", err);
+            match result {
+                RequestResult::Get(result) => {
+                    let result: GetItemOutput = result;
+                    match result.item {
+                        None => {
+                            error!("Lobby not found: {:?}", lobby_id);
                             let client = ApiGatewayManagementApiClient::new(Region::Custom {
                                 name: Region::EuWest2.name().into(),
                                 endpoint: endpoint(&event.request_context),
                             });
                             let result = client.clone().post_to_connection(PostToConnectionRequest {
                                             connection_id: event.request_context.connection_id.unwrap(),
-                                            data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
+                                            data: serde_json::to_vec(&json!({ "message": "Unable to find lobby" })).unwrap_or_default(),
                                         }).sync();
                             match result {
                                 Err(e) => error!("{:?}", e),
                                 _ => (),
                             }
                         },
-                        Ok(_) => (),
-                    };
-                }
-            }
+                        Some(item) => {
+                            let mut data: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
+                            let existing_player: Vec<types::Player> = data.players.clone().into_iter().filter(|player| player.name == name).collect();
+                            if existing_player.len() == 1 {
+                                if existing_player[0].secret == secret {
+                                    let mut new_players = data.players.clone();
+                                    new_players.retain(|player| player.name != name);
+                                    new_players.push(types::Player{
+                                        id: event.request_context.connection_id.clone().unwrap(),
+                                        name: name,
+                                        secret: secret,
+                                        attributes: None,
+                                    });
+                                    data.players = new_players;
+                                }
+                                else {
+                                    error!("Non-matching secret for {:?}", name);
+                                }
+                            }
+                            else {
+                                data.players.push(types::Player{
+                                    id: event.request_context.connection_id.clone().unwrap(),
+                                    name: name,
+                                    secret: secret,
+                                    attributes: None,
+                                });
+                            }
+                            let mut new_item = item.clone();
+                            new_item.insert("version".to_string(), AttributeValue {
+                                n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
+                                ..Default::default()
+                            });
+                            let d = json!(data);
+                            new_item.insert("data".to_string(), AttributeValue {
+                                s: Some(d.to_string()),
+                                ..Default::default()
+                            });
+                            let condition_expression = format!("version < :version");
+                            let mut attribute_values = HashMap::new();
+                            attribute_values.insert(":version".to_string(), AttributeValue {
+                                n: Some(new_item["version"].n.clone().unwrap()),
+                                ..Default::default()
+                            });
+                            let result = DDB.with(|ddb| {
+                                ddb.put_item(PutItemInput {
+                                    table_name,
+                                    condition_expression: Some(condition_expression),
+                                    item: new_item,
+                                    expression_attribute_values: Some(attribute_values),
+                                    ..PutItemInput::default()
+                                })
+                                .map(drop)
+                                .map_err(RequestError::Connect)
+                            });
+                        
+                            match RT.with(|rt| rt.borrow_mut().block_on(result)) {
+                                Err(err) => {
+                                    log::error!("failed to perform new game connection operation: {:?}", err);
+                                    let client = ApiGatewayManagementApiClient::new(Region::Custom {
+                                        name: Region::EuWest2.name().into(),
+                                        endpoint: endpoint(&event.request_context),
+                                    });
+                                    let result = client.clone().post_to_connection(PostToConnectionRequest {
+                                                    connection_id: event.request_context.connection_id.unwrap(),
+                                                    data: serde_json::to_vec(&json!({ "message": format!("{:?}", err) })).unwrap_or_default(),
+                                                }).sync();
+                                    match result {
+                                        Err(e) => error!("{:?}", e),
+                                        _ => (),
+                                    }
+                                },
+                                Ok(_) => (),
+                            };
+                        }
+                    }
+                },
+            };
         },
     };
 }

@@ -79,7 +79,8 @@ resource "aws_iam_policy" "dynamodb_read_write_policy" {
         "dynamodb:Query",
         "dynamodb:Delete*",
         "dynamodb:Update*",
-        "dynamodb:PutItem"
+        "dynamodb:PutItem",
+        "dynamodb:GetItem"
       ],
       "Effect": "Allow",
       "Resource": ["${aws_dynamodb_table.janky-werewolf-table.arn}",
