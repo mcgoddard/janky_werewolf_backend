@@ -6,6 +6,12 @@ use serde::de::{Deserialize, Deserializer, DeserializeOwned};
 use serde_json::Value;
 
 use aws_lambda_events::event::apigw::ApiGatewayRequestIdentity;
+use rusoto_core::RusotoError;
+use dynomite::{
+    dynamodb::{
+        PutItemError, GetItemError, GetItemOutput,
+    },
+};
 
 #[derive(Deserialize, Serialize, Clone)]
 pub enum PlayerRole {
@@ -13,27 +19,7 @@ pub enum PlayerRole {
     Villager,
     Seer,
     Werewolf,
-}
-
-impl PlayerRole {
-    pub fn from_str(s: &str) -> Option<PlayerRole> {
-        match s {
-            "UNKNOWN" => Some(PlayerRole::Unknown),
-            "VILLAGER" => Some(PlayerRole::Villager),
-            "SEER" => Some(PlayerRole::Seer),
-            "WEREWOLF" => Some(PlayerRole::Werewolf),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PlayerRole::Unknown => "UNKNOWN",
-            PlayerRole::Villager => "VILLAGER",
-            PlayerRole::Seer => "SEER",
-            PlayerRole::Werewolf => "WEREWOLF",
-        }
-    }
+    Mod,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -41,25 +27,7 @@ pub enum PlayerTeam {
     Unknown,
     Good,
     Evil,
-}
-
-impl PlayerTeam {
-    pub fn from_str(s: &str) -> Option<PlayerTeam> {
-        match s {
-            "UNKNOWN" => Some(PlayerTeam::Unknown),
-            "GOOD" => Some(PlayerTeam::Good),
-            "EVIL" => Some(PlayerTeam::Evil),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PlayerTeam::Unknown => "UNKNOWN",
-            PlayerTeam::Good => "GOOD",
-            PlayerTeam::Evil => "EVIL",
-        }
-    }
+    Mod,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
@@ -71,45 +39,19 @@ pub struct PlayerAttributes {
 
 #[derive(Deserialize, Serialize, Clone)]
 pub struct Player {
-    pub id: String, // *NOT* a user ID, is a *player* ID
+    pub id: String,
     pub name: String,
     pub secret: String,
-    pub attributes: Option<PlayerAttributes>, // Optional, as moderator will not have it
+    pub attributes: Option<PlayerAttributes>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
 pub enum PhaseName {
     Lobby,
-    Welcome,
-    Afternoon,
-    Night,
-    Morning,
+    Day,
+    Seer,
+    Werewolf,
     End,
-}
-
-impl PhaseName {
-    pub fn from_str(s: &str) -> Option<PhaseName> {
-        match s {
-            "LOBBY" => Some(PhaseName::Lobby),
-            "WELCOME" => Some(PhaseName::Welcome),
-            "AFTERNOON" => Some(PhaseName::Afternoon),
-            "NIGHT" => Some(PhaseName::Night),
-            "MORNING" => Some(PhaseName::Morning),
-            "END" => Some(PhaseName::End),
-            _ => None,
-        }
-    }
-
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PhaseName::Lobby => "LOBBY",
-            PhaseName::Welcome => "WELCOME",
-            PhaseName::Afternoon => "AFTERNOON",
-            PhaseName::Night => "NIGHT",
-            PhaseName::Morning => "MORNING",
-            PhaseName::End => "END",
-        }
-    }
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
@@ -187,6 +129,17 @@ pub struct DdbObject {
     #[serde(deserialize_with = "deserialize_lambda_map")]
     #[serde(default)]
     pub data: HashMap<String, String>,
+}
+
+#[derive(Debug)]
+pub enum RequestResult {
+    Get(GetItemOutput),
+}
+
+#[derive(Debug)]
+pub enum RequestError {
+    Connect(RusotoError<PutItemError>),
+    Get(RusotoError<GetItemError>),
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

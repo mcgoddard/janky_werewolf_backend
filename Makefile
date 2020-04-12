@@ -12,6 +12,12 @@ clean_connect:
 build_connect:
 	$(MAKE) -C connect_lambda build
 
+clean_start:
+	$(MAKE) -C start_lambda clean
+
+build_start:
+	$(MAKE) -C start_lambda build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect
+deploy: build_broadcast build_connect build_start
 	$(MAKE) -C terraform/main apply

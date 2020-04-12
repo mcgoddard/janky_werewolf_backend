@@ -4,6 +4,8 @@ use rusoto_apigatewaymanagementapi::{
 use rusoto_core::Region;
 use serde_json::json;
 
+use super::types;
+
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
         name: Region::EuWest2.name().into(),
@@ -16,5 +18,19 @@ pub fn send_error(message: String, connection_id: String, endpoint: String) {
     match result {
         Err(e) => error!("Error sending error: {:?}", e),
         _ => (),
+    }
+}
+
+pub fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
+    match &ctx.domain_name {
+        Some(domain) => (
+            match &ctx.stage {
+                Some(stage) => (
+                    format!("https://{}/{}", domain, stage)
+                ),
+                None => panic!("No stage on request context"),
+            }
+        ),
+        None => panic!("No domain on request context"),
     }
 }

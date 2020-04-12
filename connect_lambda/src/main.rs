@@ -19,12 +19,11 @@ use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemError, PutItemInput, AttributeValue, GetItemInput, GetItemError, GetItemOutput,
+        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput, GetItemOutput,
     },
 };
 use futures::Future;
 use rand::Rng;
-use rusoto_core::RusotoError;
 use tokio::runtime::Runtime;
 use serde_json::json;
 
@@ -51,22 +50,6 @@ struct EventData {
     name: String,
     secret: String,
     code: Option<String>,
-}
-
-#[derive(Serialize, Clone)]
-struct CustomOutput {
-    message: String,
-}
-
-#[derive(Debug)]
-enum RequestResult {
-    Get(GetItemOutput),
-}
-
-#[derive(Debug)]
-enum RequestError {
-    Connect(RusotoError<PutItemError>),
-    Get(RusotoError<GetItemError>),
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -102,20 +85,6 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
         body: None,
         is_base64_encoded: None,
     })
-}
-
-fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
-    match &ctx.domain_name {
-        Some(domain) => (
-            match &ctx.stage {
-                Some(stage) => (
-                    format!("https://{}/{}", domain, stage)
-                ),
-                None => panic!("No stage on request context"),
-            }
-        ),
-        None => panic!("No domain on request context"),
-    }
 }
 
 fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret: String) {
@@ -166,14 +135,14 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
             ..PutItemInput::default()
         })
         .map(drop)
-        .map_err(RequestError::Connect)
+        .map_err(types::RequestError::Connect)
     });
 
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
             helpers::send_error(format!("Error creating game: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
         },
         Ok(_) => (),
     };
@@ -194,25 +163,25 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
             key: ddb_keys,
             ..GetItemInput::default()
         })
-        .map(RequestResult::Get)
-        .map_err(RequestError::Get)
+        .map(types::RequestResult::Get)
+        .map_err(types::RequestError::Get)
     });
 
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
             helpers::send_error(format!("Lobby not found: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
         },
         Ok(result) => {
             match result {
-                RequestResult::Get(result) => {
+                types::RequestResult::Get(result) => {
                     let result: GetItemOutput = result;
                     match result.item {
                         None => {
                             error!("Lobby not found: {:?}", lobby_id);
                             helpers::send_error("Unable to find lobby".to_string(),
-                                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+                                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
                         },
                         Some(item) => {
                             let mut data: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
@@ -266,14 +235,14 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                                     ..PutItemInput::default()
                                 })
                                 .map(drop)
-                                .map_err(RequestError::Connect)
+                                .map_err(types::RequestError::Connect)
                             });
 
                             match RT.with(|rt| rt.borrow_mut().block_on(result)) {
                                 Err(err) => {
                                     log::error!("failed to perform new game connection operation: {:?}", err);
                                     helpers::send_error(format!("Error joining game: {:?}", err),
-                                        event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+                                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
                                 },
                                 Ok(_) => (),
                             };
