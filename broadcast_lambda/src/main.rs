@@ -53,10 +53,15 @@ fn process_record(record: &types::DDBRecord) {
                 Some(s) => {
                     match s.as_str() {
                         "NEW_IMAGE" => {
-                            let new_image: types::GameState = serde_json::from_str(&stream_record.new_image.data["S"]).unwrap();
-                            let players = new_image.players.clone();
-                            for player in &players {
-                                broadcast(player, new_image.clone());
+                            match &stream_record.new_image {
+                                Some(new_image) => {
+                                    let new_image: types::GameState = serde_json::from_str(&new_image.data["S"]).unwrap();
+                                    let players = new_image.players.clone();
+                                    for player in &players {
+                                        broadcast(player, new_image.clone());
+                                    }
+                                },
+                                None => log::error!("No new image"),
                             }
                         },
                         s => log::error!("unable to process stream view: {:?}", s),

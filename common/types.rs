@@ -58,7 +58,7 @@ pub enum PhaseName {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StreamRecord {
     #[serde(rename = "NewImage")]
-    pub new_image: DdbObject,
+    pub new_image: Option<DdbObject>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(rename = "StreamViewType")]
     pub stream_view_type: Option<String>,

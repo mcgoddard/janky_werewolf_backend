@@ -30,6 +30,12 @@ clean_lynch:
 build_lynch:
 	$(MAKE) -C lynch_lambda build
 
+clean_seer:
+	$(MAKE) -C seer_lambda clean
+
+build_seer:
+	$(MAKE) -C seer_lambda build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect build_start build_sleep build_lynch
+deploy: build_broadcast build_connect build_start build_sleep build_lynch build_seer
 	$(MAKE) -C terraform/main apply

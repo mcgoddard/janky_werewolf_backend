@@ -155,7 +155,7 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                         id: event.request_context.connection_id.clone().unwrap(),
                         name: name,
                         secret: secret,
-                        attributes: None,
+                        attributes: existing_player[0].attributes.clone(),
                     });
                     data.players = new_players;
                 }
