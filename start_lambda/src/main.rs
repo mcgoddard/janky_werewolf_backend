@@ -125,12 +125,14 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
         role: types::PlayerRole::Seer,
         team: types::PlayerTeam::Good,
         alive: true,
+        visible_to: vec!["Mod".to_string()],
     });
     for _ in 0..werewolves {
         roles.push(types::PlayerAttributes {
             role: types::PlayerRole::Werewolf,
             team: types::PlayerTeam::Evil,
             alive: true,
+            visible_to: vec!["Mod".to_string()],
         });
     }
     for _ in 0..num_villagers {
@@ -138,6 +140,7 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
             role: types::PlayerRole::Villager,
             team: types::PlayerTeam::Good,
             alive: true,
+            visible_to: vec!["Mod".to_string()],
         });
     }
 
@@ -151,6 +154,7 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
                 role: types::PlayerRole::Mod,
                 team: types::PlayerTeam::Unknown,
                 alive: true,
+                visible_to: vec!["All".to_string()],
             });
         }
         else {

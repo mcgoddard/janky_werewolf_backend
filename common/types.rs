@@ -35,6 +35,7 @@ pub struct PlayerAttributes {
     pub role: PlayerRole,
     pub team: PlayerTeam,
     pub alive: bool,
+    pub visible_to: Vec<String>,
 }
 
 #[derive(Deserialize, Serialize, Clone)]
