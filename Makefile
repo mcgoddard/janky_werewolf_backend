@@ -24,6 +24,12 @@ clean_sleep:
 build_sleep:
 	$(MAKE) -C sleep_lambda build
 
+clean_lynch:
+	$(MAKE) -C lynch_lambda clean
+
+build_lynch:
+	$(MAKE) -C lynch_lambda build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect build_start build_sleep
+deploy: build_broadcast build_connect build_start build_sleep build_lynch
 	$(MAKE) -C terraform/main apply
