@@ -36,6 +36,12 @@ clean_seer:
 build_seer:
 	$(MAKE) -C seer_lambda build
 
+clean_werewolf:
+	$(MAKE) -C werewolf_lambda clean
+
+build_werewolf:
+	$(MAKE) -C werewolf_lambda build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect build_start build_sleep build_lynch build_seer
+deploy: build_broadcast build_connect build_start build_sleep build_lynch build_seer build_werewolf
 	$(MAKE) -C terraform/main apply

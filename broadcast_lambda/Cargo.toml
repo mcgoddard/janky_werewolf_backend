@@ -1,5 +1,5 @@
 [package]
-name = "broadcast_function"
+name = "broadcast_lambda"
 version = "0.1.0"
 authors = ["Mike Goddard <mikeygiom@gmail.com>"]
 edition = "2018"

@@ -22,7 +22,6 @@ use dynomite::{
     },
 };
 use tokio::runtime::Runtime;
-use serde_json::json;
 
 mod types;
 mod helpers;
@@ -116,7 +115,7 @@ fn move_to_werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap
                                     event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
                             },
                             Some(attr) => {
-                                if attr.visible_to.contains(&json!(types::PlayerRole::Seer).to_string()) {
+                                if attr.visible_to.contains(&format!("{:?}", types::PlayerRole::Seer)) || !attr.alive {
                                     helpers::send_error("Player is already seen!".to_string(),
                                         event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
                                 }

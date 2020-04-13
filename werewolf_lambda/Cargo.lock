@@ -1833,28 +1833,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "seer_lambda"
-version = "0.1.0"
-dependencies = [
- "aws_lambda_events",
- "dynomite",
- "env_logger",
- "futures 0.1.29",
- "lambda_runtime",
- "log",
- "openssl",
- "rand 0.7.3",
- "rusoto_apigatewaymanagementapi",
- "rusoto_core 0.38.0",
- "rusoto_dynamodb 0.43.0",
- "serde",
- "serde_derive",
- "serde_json",
- "simple_logger",
- "tokio 0.1.22",
-]
-
-[[package]]
 name = "semver"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2617,6 +2595,28 @@ name = "wasm-bindgen-shared"
 version = "0.2.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "daf76fe7d25ac79748a37538b7daeed1c7a6867c92d3245c12c6222e4a20d639"
+
+[[package]]
+name = "werewolf_lambda"
+version = "0.1.0"
+dependencies = [
+ "aws_lambda_events",
+ "dynomite",
+ "env_logger",
+ "futures 0.1.29",
+ "lambda_runtime",
+ "log",
+ "openssl",
+ "rand 0.7.3",
+ "rusoto_apigatewaymanagementapi",
+ "rusoto_core 0.38.0",
+ "rusoto_dynamodb 0.43.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simple_logger",
+ "tokio 0.1.22",
+]
 
 [[package]]
 name = "winapi"

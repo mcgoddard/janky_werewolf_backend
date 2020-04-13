@@ -1,5 +1,5 @@
 [package]
-name = "start_lambda"
+name = "sleep_lambda"
 version = "0.1.0"
 authors = ["Mike Goddard <mikeygiom@gmail.com>"]
 edition = "2018"
