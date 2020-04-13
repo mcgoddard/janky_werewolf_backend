@@ -124,7 +124,7 @@ fn move_to_werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap
                                     let mut new_players = game_state.players.clone();
                                     new_players.retain(|p| p.name != see_player_name);
                                     let mut new_attributes = see_player[0].attributes.clone().unwrap();
-                                    new_attributes.visible_to.push(json!(types::PlayerRole::Seer).to_string());
+                                    new_attributes.visible_to.push(format!("{:?}", types::PlayerRole::Seer));
                                     let mut new_seen_player = see_player[0].clone();
                                     new_seen_player.attributes = see_player[0].attributes.clone();
                                     new_seen_player.attributes = Some(new_attributes);
