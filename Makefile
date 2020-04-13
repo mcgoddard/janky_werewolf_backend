@@ -18,6 +18,12 @@ clean_start:
 build_start:
 	$(MAKE) -C start_lambda build
 
+clean_sleep:
+	$(MAKE) -C sleep_lambda clean
+
+build_sleep:
+	$(MAKE) -C sleep_lambda build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect build_start
+deploy: build_broadcast build_connect build_start build_sleep
 	$(MAKE) -C terraform/main apply

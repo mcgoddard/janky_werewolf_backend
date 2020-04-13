@@ -13,7 +13,7 @@ use dynomite::{
     },
 };
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum PlayerRole {
     Unknown,
     Villager,
@@ -22,7 +22,7 @@ pub enum PlayerRole {
     Mod,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum PlayerTeam {
     Unknown,
     Good,
@@ -45,7 +45,7 @@ pub struct Player {
     pub attributes: Option<PlayerAttributes>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Deserialize, Serialize, Clone, PartialEq)]
 pub enum PhaseName {
     Lobby,
     Day,
