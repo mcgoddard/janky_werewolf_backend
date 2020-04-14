@@ -104,7 +104,7 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
         if game_state.phase.name != types::PhaseName::End {
             if let Some(mut new_attributes) = new_attributes_option {
                 new_attributes.visible_to = vec![];
-                if p.name != player.name && p.attributes.as_ref().unwrap().role != types::PlayerRole::Mod && 
+                if p.name != player.name && p.attributes.as_ref().unwrap().alive && p.attributes.as_ref().unwrap().role != types::PlayerRole::Mod && 
                     !p.attributes.as_ref().unwrap().visible_to.contains(&format!("{:?}", player.attributes.as_ref().unwrap().role.clone())) {
                     new_attributes.role = types::PlayerRole::Unknown;
                     new_attributes.team = types::PlayerTeam::Unknown;
