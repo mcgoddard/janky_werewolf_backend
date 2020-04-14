@@ -121,7 +121,10 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                                 }
                                 else {
                                     let num_werewolves = game_state.players.clone().into_iter()
-                                        .filter(|p| p.attributes.as_ref().unwrap().role == types::PlayerRole::Werewolf).collect::<Vec<types::Player>>().len();
+                                        .filter(|p| {
+                                            p.attributes.as_ref().unwrap().role == types::PlayerRole::Werewolf &&
+                                            p.attributes.as_ref().unwrap().alive
+                                        }).collect::<Vec<types::Player>>().len();
                                     let mut new_phase = game_state.phase.clone();
                                     let mut new_players = game_state.players.clone();
 
