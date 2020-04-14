@@ -163,13 +163,17 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                     error!("Non-matching secret for {:?}", name);
                 }
             }
-            else {
+            else if data.phase.name == types::PhaseName::Lobby {
                 data.players.push(types::Player{
                     id: event.request_context.connection_id.clone().unwrap(),
                     name: name,
                     secret: secret,
                     attributes: None,
                 });
+            }
+            else {
+                helpers::send_error(format!("Error cannot join an in-progress game"),
+                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
             }
             helpers::update_state(item, data, table_name, event);
         },
