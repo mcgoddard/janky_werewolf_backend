@@ -99,6 +99,8 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
     new_state.players = new_state.players.into_iter().map(|p| {
         let new_attributes_option = p.attributes.clone();
         let mut new_player = p.clone();
+        new_player.secret = "".to_string();
+        new_player.id = "".to_string();
         if let Some(mut new_attributes) = new_attributes_option {
             new_attributes.visible_to = vec![];
             if p.name != player.name && p.attributes.as_ref().unwrap().role != types::PlayerRole::Mod && 
