@@ -18,13 +18,12 @@ use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput, GetItemOutput,
+        DynamoDb, DynamoDbClient, AttributeValue, GetItemInput, GetItemOutput,
     },
 };
 use futures::Future;
 use rand::Rng;
 use tokio::runtime::Runtime;
-use serde_json::json;
 
 mod types;
 mod helpers;
@@ -125,14 +124,14 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
         role: types::PlayerRole::Seer,
         team: types::PlayerTeam::Good,
         alive: true,
-        visible_to: vec!["Mod".to_string()],
+        visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
     });
     for _ in 0..werewolves {
         roles.push(types::PlayerAttributes {
             role: types::PlayerRole::Werewolf,
             team: types::PlayerTeam::Evil,
             alive: true,
-            visible_to: vec!["Mod".to_string()],
+            visible_to: vec![format!("{:?}", types::PlayerRole::Mod), format!("{:?}", types::PlayerRole::Werewolf)],
         });
     }
     for _ in 0..num_villagers {
@@ -140,7 +139,7 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
             role: types::PlayerRole::Villager,
             team: types::PlayerTeam::Good,
             alive: true,
-            visible_to: vec!["Mod".to_string()],
+            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
         });
     }
 
@@ -169,41 +168,6 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
         name: types::PhaseName::Day,
         data: HashMap::new(),
     };
-    
-    let mut new_item = item.clone();
-    new_item.insert("version".to_string(), AttributeValue {
-        n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
-        ..Default::default()
-    });
-    let d = json!(game_state);
-    new_item.insert("data".to_string(), AttributeValue {
-        s: Some(d.to_string()),
-        ..Default::default()
-    });
-    let condition_expression = format!("version < :version");
-    let mut attribute_values = HashMap::new();
-    attribute_values.insert(":version".to_string(), AttributeValue {
-        n: Some(new_item["version"].n.clone().unwrap()),
-        ..Default::default()
-    });
-    let result = DDB.with(|ddb| {
-        ddb.put_item(PutItemInput {
-            table_name,
-            condition_expression: Some(condition_expression),
-            item: new_item,
-            expression_attribute_values: Some(attribute_values),
-            ..PutItemInput::default()
-        })
-        .map(drop)
-        .map_err(types::RequestError::Connect)
-    });
 
-    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        Err(err) => {
-            log::error!("failed to perform new game connection operation: {:?}", err);
-            helpers::send_error(format!("Error joining game: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-        },
-        Ok(_) => (),
-    };
+    helpers::update_state(item, game_state, table_name, event);
 }

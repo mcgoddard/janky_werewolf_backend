@@ -86,8 +86,8 @@ pub fn update_state(item: HashMap<String, AttributeValue>, game_state: types::Ga
 
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
-            log::error!("failed to perform move to seer: {:?}", err);
-            send_error(format!("Error moving to seer: {:?}", err),
+            log::error!("Error saving state: {:?}", err);
+            send_error(format!("Error saving state, please try again: {:?}", err),
                 event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         },
         Ok(_) => (),
