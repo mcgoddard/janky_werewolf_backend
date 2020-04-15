@@ -168,7 +168,12 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                     id: event.request_context.connection_id.clone().unwrap(),
                     name: name,
                     secret: secret,
-                    attributes: None,
+                    attributes: Some(types::PlayerAttributes {
+                        role: types::PlayerRole::Unknown,
+                        team: types::PlayerTeam::Unknown,
+                        alive: true,
+                        visible_to: vec!["All".to_string()],
+                    }),
                 });
             }
             else {

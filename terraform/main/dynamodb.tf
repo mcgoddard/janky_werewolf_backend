@@ -20,7 +20,9 @@ resource "aws_dynamodb_table" "janky-werewolf-table" {
 }
 
 resource "aws_lambda_event_source_mapping" "broadcast-state-mapping" {
-  event_source_arn  = aws_dynamodb_table.janky-werewolf-table.stream_arn
-  function_name     = module.broadcast_lambda.lambda_arn
-  starting_position = "LATEST"
+  event_source_arn       = aws_dynamodb_table.janky-werewolf-table.stream_arn
+  function_name          = module.broadcast_lambda.lambda_arn
+  starting_position      = "LATEST"
+  batch_size             = 1
+  maximum_retry_attempts = 2
 }
