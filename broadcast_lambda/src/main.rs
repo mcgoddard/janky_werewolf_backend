@@ -104,7 +104,6 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
         if game_state.phase.name != types::PhaseName::End {
             if let Some(mut new_attributes) = new_attributes_option {
                 if let Some(player_attributes) = player.attributes.clone() {
-                    new_attributes.visible_to = vec![];
                     if p.name != player.name && new_attributes.alive && new_attributes.role != types::PlayerRole::Mod {
                         if !new_attributes.visible_to.contains(&format!("{:?}", player_attributes.role.clone())) {
                             new_attributes.role = types::PlayerRole::Unknown;
@@ -114,6 +113,7 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
                             new_attributes.role = types::PlayerRole::Unknown;
                         }
                     }
+                    new_attributes.visible_to = vec![];
                     new_player.attributes = Some(new_attributes);
                 }
             }
