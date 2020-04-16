@@ -15,3 +15,6 @@ clean:
 	rm -rf release || true
 	rm release.zip || true
 	cargo clean
+
+cargo:
+	cargo clippy
