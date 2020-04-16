@@ -26,8 +26,7 @@ use rand::Rng;
 use serde_json::json;
 use futures::future::Future;
 
-mod types;
-mod helpers;
+use common::{types, helpers};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct ConnectEvent {

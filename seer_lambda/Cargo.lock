@@ -260,6 +260,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "aws_lambda_events",
+ "dynomite",
+ "env_logger",
+ "futures 0.1.29",
+ "log",
+ "openssl",
+ "rusoto_apigatewaymanagementapi",
+ "rusoto_core 0.38.0",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simple_logger",
+ "tokio 0.1.22",
+]
+
+[[package]]
 name = "constant_time_eq"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1837,6 +1856,7 @@ name = "seer_lambda"
 version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
+ "common",
  "dynomite",
  "env_logger",
  "futures 0.1.29",

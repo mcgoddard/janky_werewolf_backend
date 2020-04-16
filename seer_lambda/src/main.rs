@@ -23,8 +23,7 @@ use dynomite::{
 };
 use tokio::runtime::Runtime;
 
-mod types;
-mod helpers;
+use common::{types, helpers};
 
 thread_local!(
     static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());

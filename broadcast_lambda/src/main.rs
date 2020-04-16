@@ -1,6 +1,5 @@
 #[macro_use]
 extern crate lambda_runtime as lambda;
-#[macro_use]
 extern crate serde_derive;
 extern crate simple_logger;
 
@@ -18,7 +17,7 @@ use rusoto_apigatewaymanagementapi::{
 use rusoto_core::Region;
 use serde_json::json;
 
-mod types;
+use common::types;
 
 fn main() -> Result<(), Box<dyn Error>> {
     simple_logger::init_with_level(log::Level::Info)?;

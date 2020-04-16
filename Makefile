@@ -42,6 +42,12 @@ clean_werewolf:
 build_werewolf:
 	$(MAKE) -C werewolf_lambda build
 
+clean_common:
+	$(MAKE) -C common clean
+
+build_common:
+	$(MAKE) -C common build
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_broadcast build_connect build_start build_sleep build_lynch build_seer build_werewolf
+deploy: build_common build_broadcast build_connect build_start build_sleep build_lynch build_seer build_werewolf
 	$(MAKE) -C terraform/main apply

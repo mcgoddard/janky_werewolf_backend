@@ -25,8 +25,7 @@ use futures::Future;
 use rand::Rng;
 use tokio::runtime::Runtime;
 
-mod types;
-mod helpers;
+use common::{types, helpers};
 
 thread_local!(
     static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());

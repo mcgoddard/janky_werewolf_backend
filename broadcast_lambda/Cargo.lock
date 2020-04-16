@@ -134,6 +134,7 @@ name = "broadcast_lambda"
 version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
+ "common",
  "dynomite",
  "env_logger",
  "lambda_runtime",
@@ -213,6 +214,25 @@ dependencies = [
  "atty",
  "lazy_static",
  "winapi 0.3.8",
+]
+
+[[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "aws_lambda_events",
+ "dynomite",
+ "env_logger",
+ "futures",
+ "log",
+ "openssl",
+ "rusoto_apigatewaymanagementapi",
+ "rusoto_core",
+ "serde",
+ "serde_derive",
+ "serde_json",
+ "simple_logger",
+ "tokio",
 ]
 
 [[package]]
