@@ -6,8 +6,8 @@ build:
 clean:
 	$(MAKE) -C ${t} clean
 
-cargo:
-	$(MAKE) -C ${t} cargo
+clippy:
+	$(MAKE) -C ${t} clippy
 
 deploy: export AWS_PROFILE = jankywerewolf_admin
 deploy:

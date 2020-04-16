@@ -16,5 +16,5 @@ clean:
 	rm release.zip || true
 	cargo clean
 
-cargo:
+clippy:
 	cargo clippy

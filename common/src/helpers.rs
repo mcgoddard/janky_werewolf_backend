@@ -28,16 +28,13 @@ thread_local!(
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
         name: Region::EuWest2.name().into(),
-        endpoint: endpoint,
+        endpoint,
     });
-    let result = client.clone().post_to_connection(PostToConnectionRequest {
-                    connection_id: connection_id,
+    let result = client.post_to_connection(PostToConnectionRequest {
+                    connection_id,
                     data: serde_json::to_vec(&json!({ "message": message })).unwrap_or_default(),
                 }).sync();
-    match result {
-        Err(e) => error!("Error sending error: {:?}", e),
-        _ => (),
-    }
+    if let Err(e) = result { error!("Error sending error: {:?}", e) }
 }
 
 pub fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
@@ -54,9 +51,9 @@ pub fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
     }
 }
 
-pub fn update_state(item: HashMap<String, AttributeValue>, game_state: types::GameState,
-                table_name: String, event: types::ApiGatewayWebsocketProxyRequest) {
-    let mut new_item = item.clone();
+pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash_map::RandomState>, game_state: types::GameState,
+                    table_name: String, event: types::ApiGatewayWebsocketProxyRequest) {
+    let mut new_item = item;
     new_item.insert("version".to_string(), AttributeValue {
         n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
         ..Default::default()
@@ -66,8 +63,8 @@ pub fn update_state(item: HashMap<String, AttributeValue>, game_state: types::Ga
         s: Some(d.to_string()),
         ..Default::default()
     });
-    let condition_expression = format!("version < :version");
-    let mut attribute_values = HashMap::new();
+    let condition_expression = "version < :version".to_string();
+    let mut attribute_values = HashMap::default();
     attribute_values.insert(":version".to_string(), AttributeValue {
         n: Some(new_item["version"].n.clone().unwrap()),
         ..Default::default()
@@ -84,13 +81,10 @@ pub fn update_state(item: HashMap<String, AttributeValue>, game_state: types::Ga
         .map_err(types::RequestError::Connect)
     });
 
-    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        Err(err) => {
-            log::error!("Error saving state: {:?}", err);
-            send_error(format!("Error saving state, please try again: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
-        },
-        Ok(_) => (),
+    if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
+        log::error!("Error saving state: {:?}", err);
+        send_error(format!("Error saving state, please try again: {:?}", err),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     };
 }
 
@@ -136,11 +130,11 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
             }
         }
     }
-    return None;
+    None
 }
 
-pub fn check_game_over(players: &Vec<types::Player>) -> bool {
+pub fn check_game_over(players: Vec<types::Player>) -> bool {
     let good_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Good && p.attributes.as_ref().unwrap().alive).collect();
-    let evil_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Evil && p.attributes.as_ref().unwrap().alive).collect();
-    return evil_players.len() >= good_players.len() || evil_players.len() == 0;
+    let evil_players: Vec<types::Player> = players.into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Evil && p.attributes.as_ref().unwrap().alive).collect();
+    evil_players.len() >= good_players.len() || evil_players.is_empty()
 }

@@ -308,5 +308,5 @@ where
 {
     // https://github.com/serde-rs/serde/issues/1098
     let opt = Option::deserialize(deserializer)?;
-    Ok(opt.unwrap_or(HashMap::default()))
+    Ok(opt.unwrap_or_default())
 }
