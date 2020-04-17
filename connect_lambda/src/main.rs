@@ -81,7 +81,7 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
 
     let mut rng = rand::thread_rng();
     let valid_code_chars = vec!["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
-    let code: String = (0..4).map(|_| valid_code_chars[rng.gen_range(0, 26) as usize].clone()).collect();
+    let code: String = (0..4).map(|_| (valid_code_chars[rng.gen_range(0, 26) as usize]).to_owned()).collect();
 
     let item = types::GameState {
         lobby_id: code,
@@ -127,14 +127,11 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
         .map_err(types::RequestError::Connect)
     });
 
-    match helpers::RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        Err(err) => {
-            log::error!("failed to perform new game connection operation: {:?}", err);
-            helpers::send_error(format!("Error creating game: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-        },
-        Ok(_) => (),
-    };
+    if let Err(err) = helpers::RT.with(|rt| rt.borrow_mut().block_on(result)) {
+        log::error!("failed to perform new game connection operation: {:?}", err);
+        helpers::send_error(format!("Error creating game: {:?}", err),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
 }
 
 fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) {
@@ -142,45 +139,42 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
 
     let item = helpers::get_state(table_name.clone(), event.clone(), lobby_id);
 
-    match item {
-        Some(item) => {
-            let mut data: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
-            let existing_player: Vec<types::Player> = data.players.clone().into_iter().filter(|player| player.name == name).collect();
-            if existing_player.len() == 1 {
-                if existing_player[0].secret == secret {
-                    let mut new_players = data.players.clone();
-                    new_players.retain(|player| player.name != name);
-                    new_players.push(types::Player{
-                        id: event.request_context.connection_id.clone().unwrap(),
-                        name: name,
-                        secret: secret,
-                        attributes: existing_player[0].attributes.clone(),
-                    });
-                    data.players = new_players;
-                }
-                else {
-                    error!("Non-matching secret for {:?}", name);
-                }
-            }
-            else if data.phase.name == types::PhaseName::Lobby {
-                data.players.push(types::Player{
+    if let Some(item) = item {
+        let mut data: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
+        let existing_player: Vec<types::Player> = data.players.clone().into_iter().filter(|player| player.name == name).collect();
+        if existing_player.len() == 1 {
+            if existing_player[0].secret == secret {
+                let mut new_players = data.players.clone();
+                new_players.retain(|player| player.name != name);
+                new_players.push(types::Player{
                     id: event.request_context.connection_id.clone().unwrap(),
-                    name: name,
-                    secret: secret,
-                    attributes: Some(types::PlayerAttributes {
-                        role: types::PlayerRole::Unknown,
-                        team: types::PlayerTeam::Unknown,
-                        alive: true,
-                        visible_to: vec!["All".to_string()],
-                    }),
+                    name,
+                    secret,
+                    attributes: existing_player[0].attributes.clone(),
                 });
+                data.players = new_players;
             }
             else {
-                helpers::send_error(format!("Error cannot join an in-progress game"),
-                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+                error!("Non-matching secret for {:?}", name);
             }
-            helpers::update_state(item, data, table_name, event);
-        },
-        None => (),
+        }
+        else if data.phase.name == types::PhaseName::Lobby {
+            data.players.push(types::Player{
+                id: event.request_context.connection_id.clone().unwrap(),
+                name,
+                secret,
+                attributes: Some(types::PlayerAttributes {
+                    role: types::PlayerRole::Unknown,
+                    team: types::PlayerTeam::Unknown,
+                    alive: true,
+                    visible_to: vec!["All".to_string()],
+                }),
+            });
+        }
+        else {
+            helpers::send_error("Error cannot join an in-progress game".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        }
+        helpers::update_state(item, data, table_name, event);
     }
 }

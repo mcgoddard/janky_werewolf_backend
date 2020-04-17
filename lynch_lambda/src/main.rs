@@ -61,10 +61,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     let table_name = env::var("tableName").unwrap();
 
     let current_game = helpers::get_state(table_name, e.clone(), event.data.code);
-    match current_game {
-        Some(item) => move_to_sleep(e, item, event.data.player),
-        None => (),
-    };
+    if let Some(item) = current_game { move_to_sleep(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -127,11 +124,11 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
                                     new_killing_player.attributes = killing_player[0].attributes.clone();
                                     new_killing_player.attributes = Some(new_attributes);
                                     new_players.push(new_killing_player);
-                                    if helpers::check_game_over(&new_players) {
+                                    if helpers::check_game_over(new_players.clone()) {
                                         let mut new_phase_data = HashMap::new();
                                         let winner: types::PlayerTeam;
                                         match new_players.clone().into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Evil && p.attributes.as_ref().unwrap().alive)
-                                            .collect::<Vec<types::Player>>().len() {
+                                            .count() {
                                             0 => {
                                                 winner = types::PlayerTeam::Good;
                                             },
@@ -154,7 +151,7 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
                                         };
                                         let seer_alive = game_state.players.clone().into_iter()
                                             .filter(|p| p.attributes.as_ref().unwrap().role == types::PlayerRole::Seer && p.attributes.as_ref().unwrap().alive)
-                                            .collect::<Vec<types::Player>>().len();
+                                            .count();
                                         match seer_alive {
                                             1 => {
                                                 game_state.phase = types::Phase {

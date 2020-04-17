@@ -60,10 +60,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     let table_name = env::var("tableName").unwrap();
 
     let current_game = helpers::get_state(table_name, e.clone(), event.data.code);
-    match current_game {
-        Some(item) => move_to_sleep(e, item),
-        None => (),
-    };
+    if let Some(item) = current_game { move_to_sleep(e, item) }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -102,7 +99,7 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
                 else {
                     let seer_alive = game_state.players.clone().into_iter()
                         .filter(|p| p.attributes.as_ref().unwrap().role == types::PlayerRole::Seer && p.attributes.as_ref().unwrap().alive)
-                        .collect::<Vec<types::Player>>().len();
+                        .count();
                     match seer_alive {
                         1 => {
                             game_state.phase = types::Phase {

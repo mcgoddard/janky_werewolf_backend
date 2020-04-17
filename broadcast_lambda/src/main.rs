@@ -79,14 +79,11 @@ fn broadcast(player: &types::Player, game_state: types::GameState) {
         name: Region::EuWest2.name().into(),
         endpoint: endpoint(),
     });
-    let result = client.clone().post_to_connection(PostToConnectionRequest {
+    let result = client.post_to_connection(PostToConnectionRequest {
                     connection_id: player.id.clone(),
-                    data: serde_json::to_vec(&json!({ "game_state": game_state.clone() })).unwrap_or_default(),
+                    data: serde_json::to_vec(&json!({ "game_state": game_state })).unwrap_or_default(),
                 }).sync();
-    match result {
-        Err(e) => log::error!("Unable to send state: {:?}", e),
-        _ => (),
-    }
+    if let Err(e) = result { log::error!("Unable to send state: {:?}", e) }
 }
 
 fn filter_state(player: &types::Player, game_state: types::GameState) -> types::GameState {
@@ -104,7 +101,7 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
             if let Some(mut new_attributes) = new_attributes_option {
                 if let Some(player_attributes) = player.attributes.clone() {
                     if p.name != player.name && new_attributes.alive && new_attributes.role != types::PlayerRole::Mod {
-                        if !new_attributes.visible_to.contains(&format!("{:?}", player_attributes.role.clone())) {
+                        if !new_attributes.visible_to.contains(&format!("{:?}", player_attributes.role)) {
                             new_attributes.role = types::PlayerRole::Unknown;
                             new_attributes.team = types::PlayerTeam::Unknown;
                         }
@@ -117,9 +114,9 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
                 }
             }
         }
-        return new_player;
+        new_player
     }).collect();
-    return new_state;
+    new_state
 }
 
 fn endpoint() -> String {

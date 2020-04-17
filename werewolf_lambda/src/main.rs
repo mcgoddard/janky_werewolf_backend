@@ -61,10 +61,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     let table_name = env::var("tableName").unwrap();
 
     let current_game = helpers::get_state(table_name, e.clone(), event.data.code.clone());
-    match current_game {
-        Some(item) => werewolf(e, item, event.data.player),
-        None => (),
-    };
+    if let Some(item) = current_game { werewolf(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -123,7 +120,7 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                                         .filter(|p| {
                                             p.attributes.as_ref().unwrap().role == types::PlayerRole::Werewolf &&
                                             p.attributes.as_ref().unwrap().alive
-                                        }).collect::<Vec<types::Player>>().len();
+                                        }).count();
                                     let mut new_phase = game_state.phase.clone();
                                     let mut new_players = game_state.players.clone();
 
@@ -131,7 +128,7 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
 
                                     if new_phase.data.len() == num_werewolves {
                                         let num_other_votes = new_phase.data.clone().into_iter()
-                                            .filter(|(_, value)| value.clone() != eat_player_name).collect::<HashMap<String, String>>().len();
+                                            .filter(|(_, value)| value.clone() != eat_player_name).count();
                                         if num_other_votes < 1 {
                                             new_players.retain(|p| p.name != eat_player_name);
                                             let mut new_eaten_player = eat_player[0].clone();
@@ -139,7 +136,7 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                                             new_attributes.alive = false;
                                             new_eaten_player.attributes = Some(new_attributes);
                                             new_players.push(new_eaten_player);
-                                            if helpers::check_game_over(&new_players) {
+                                            if helpers::check_game_over(new_players.clone()) {
                                                 let mut new_phase_data = HashMap::new();
                                                 new_phase_data.insert("winner".to_string(), format!("{:?}", types::PlayerTeam::Evil));
                                                 new_phase = types::Phase {

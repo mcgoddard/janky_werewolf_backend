@@ -61,10 +61,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     let table_name = env::var("tableName").unwrap();
 
     let current_game = helpers::get_state(table_name, e.clone(), event.data.code.clone());
-    match current_game {
-        Some(item) => move_to_werewolf(e, item, event.data.player),
-        None => (),
-    };
+    if let Some(item) = current_game { move_to_werewolf(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
