@@ -82,98 +82,78 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
         helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
                 event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
+    else if game_state.phase.name != types::PhaseName::Day {
+        helpers::send_error("Not a valid transition!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
+    else if players[0].attributes.role != types::PlayerRole::Mod {
+        helpers::send_error("You are not the moderator!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
     else {
-        match &players[0].attributes {
-            None => {
-                helpers::send_error(format!("No attributes for player: {:?}", players[0].name),
-                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-            }
-            Some(attr) => {
-                if game_state.phase.name != types::PhaseName::Day {
-                    helpers::send_error("Not a valid transition!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else if attr.role != types::PlayerRole::Mod {
-                    helpers::send_error("You are not the moderator!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else {
-                    let killing_player: Vec<types::Player> = game_state.players.clone().into_iter()
-                        .filter(|p| p.name == lynched_player).collect();
-                    if killing_player.len() != 1 {
-                        helpers::send_error("Invalid player to lynch!".to_string(),
-                            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        let killing_player: Vec<types::Player> = game_state.players.clone().into_iter()
+            .filter(|p| p.name == lynched_player).collect();
+        if killing_player.len() != 1 {
+            helpers::send_error("Invalid player to lynch!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        }
+        else if !players[0].attributes.alive {
+            helpers::send_error("Player is already dead!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        }
+        else {
+            let mut new_players = game_state.players.clone();
+            new_players.retain(|p| p.name != lynched_player);
+            let mut new_attributes = killing_player[0].attributes.clone();
+            new_attributes.alive = false;
+            let mut new_killing_player = killing_player[0].clone();
+            new_killing_player.attributes = killing_player[0].attributes.clone();
+            new_killing_player.attributes = new_attributes;
+            new_players.push(new_killing_player);
+            if helpers::check_game_over(new_players.clone()) {
+                let mut new_phase_data = HashMap::new();
+                let winner: types::PlayerTeam;
+                match new_players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive)
+                    .count() {
+                    0 => {
+                        winner = types::PlayerTeam::Good;
+                    },
+                    _ => {
+                        winner = types::PlayerTeam::Evil;
                     }
-                    else {
-                        match killing_player[0].attributes.clone() {
-                            None => {
-                                helpers::send_error("Player has no attributes!".to_string(),
-                                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                            },
-                            Some(attr) => {
-                                if !attr.alive {
-                                    helpers::send_error("Player is already dead!".to_string(),
-                                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                                }
-                                else {
-                                    let mut new_players = game_state.players.clone();
-                                    new_players.retain(|p| p.name != lynched_player);
-                                    let mut new_attributes = killing_player[0].attributes.clone().unwrap();
-                                    new_attributes.alive = false;
-                                    let mut new_killing_player = killing_player[0].clone();
-                                    new_killing_player.attributes = killing_player[0].attributes.clone();
-                                    new_killing_player.attributes = Some(new_attributes);
-                                    new_players.push(new_killing_player);
-                                    if helpers::check_game_over(new_players.clone()) {
-                                        let mut new_phase_data = HashMap::new();
-                                        let winner: types::PlayerTeam;
-                                        match new_players.clone().into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Evil && p.attributes.as_ref().unwrap().alive)
-                                            .count() {
-                                            0 => {
-                                                winner = types::PlayerTeam::Good;
-                                            },
-                                            _ => {
-                                                winner = types::PlayerTeam::Evil;
-                                            }
-                                        };
-                                        game_state.players = new_players;
-                                        new_phase_data.insert("winner".to_string(), format!("{:?}", winner));
-                                        game_state.phase = types::Phase {
-                                            name: types::PhaseName::End,
-                                            data: new_phase_data,
-                                        };
-                                    }
-                                    else {
-                                        game_state.players = new_players;
-                                        game_state.phase = types::Phase {
-                                            name: types::PhaseName::Seer,
-                                            data: HashMap::new(),
-                                        };
-                                        let seer_alive = game_state.players.clone().into_iter()
-                                            .filter(|p| p.attributes.as_ref().unwrap().role == types::PlayerRole::Seer && p.attributes.as_ref().unwrap().alive)
-                                            .count();
-                                        match seer_alive {
-                                            1 => {
-                                                game_state.phase = types::Phase {
-                                                    name: types::PhaseName::Seer,
-                                                    data: HashMap::new(),
-                                                };
-                                            },
-                                            _ => {
-                                                game_state.phase = types::Phase {
-                                                    name: types::PhaseName::Werewolf,
-                                                    data: HashMap::new(),
-                                                };
-                                            },
-                                        };
-                                    }
-                                    helpers::update_state(item, game_state, table_name, event);
-                                }
-                            }
-                        }
-                    }
-                }
+                };
+                game_state.players = new_players;
+                new_phase_data.insert("winner".to_string(), format!("{:?}", winner));
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::End,
+                    data: new_phase_data,
+                };
             }
+            else {
+                game_state.players = new_players;
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::Seer,
+                    data: HashMap::new(),
+                };
+                let seer_alive = game_state.players.clone().into_iter()
+                    .filter(|p| p.attributes.role == types::PlayerRole::Seer && p.attributes.alive)
+                    .count();
+                match seer_alive {
+                    1 => {
+                        game_state.phase = types::Phase {
+                            name: types::PhaseName::Seer,
+                            data: HashMap::new(),
+                        };
+                    },
+                    _ => {
+                        game_state.phase = types::Phase {
+                            name: types::PhaseName::Werewolf,
+                            data: HashMap::new(),
+                        };
+                    },
+                };
+            }
+            helpers::update_state(item, game_state, table_name, event);
         }
     }
 }

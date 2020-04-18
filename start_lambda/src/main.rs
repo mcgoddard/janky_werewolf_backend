@@ -148,16 +148,16 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     for player in &game_state.players {
         let mut new_player = player.clone();
         if player.id == event.request_context.connection_id.clone().unwrap() {
-            new_player.attributes = Some(types::PlayerAttributes {
+            new_player.attributes = types::PlayerAttributes {
                 role: types::PlayerRole::Mod,
                 team: types::PlayerTeam::Unknown,
                 alive: true,
                 visible_to: vec!["All".to_string()],
-            });
+            };
         }
         else {
             let role = roles.remove(rng.gen_range(0, roles.len()));
-            new_player.attributes = Some(role);
+            new_player.attributes = role;
         }
         new_players.push(new_player);
     }

@@ -93,7 +93,12 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
             id: event.request_context.connection_id.clone().unwrap(),
             name: name,
             secret: secret,
-            attributes: None,
+            attributes: types::PlayerAttributes {
+                role: types::PlayerRole::Unknown,
+                team: types::PlayerTeam::Unknown,
+                alive: true,
+                visible_to: vec!["All".to_string()],
+            },
         }]
     };
     let mut item_hashmap = HashMap::new();
@@ -163,12 +168,12 @@ fn join_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret
                 id: event.request_context.connection_id.clone().unwrap(),
                 name,
                 secret,
-                attributes: Some(types::PlayerAttributes {
+                attributes: types::PlayerAttributes {
                     role: types::PlayerRole::Unknown,
                     team: types::PlayerTeam::Unknown,
                     alive: true,
                     visible_to: vec!["All".to_string()],
-                }),
+                },
             });
         }
         else {

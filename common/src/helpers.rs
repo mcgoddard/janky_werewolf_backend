@@ -134,7 +134,7 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
 }
 
 pub fn check_game_over(players: Vec<types::Player>) -> bool {
-    let good_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Good && p.attributes.as_ref().unwrap().alive).collect();
-    let evil_players: Vec<types::Player> = players.into_iter().filter(|p| p.attributes.as_ref().unwrap().team == types::PlayerTeam::Evil && p.attributes.as_ref().unwrap().alive).collect();
+    let good_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Good && p.attributes.alive).collect();
+    let evil_players: Vec<types::Player> = players.into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).collect();
     evil_players.len() >= good_players.len() || evil_players.is_empty()
 }

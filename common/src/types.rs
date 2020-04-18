@@ -43,7 +43,7 @@ pub struct Player {
     pub id: String,
     pub name: String,
     pub secret: String,
-    pub attributes: Option<PlayerAttributes>,
+    pub attributes: PlayerAttributes,
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]

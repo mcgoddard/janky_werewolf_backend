@@ -81,42 +81,32 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
         helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
                 event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
+    else if game_state.phase.name != types::PhaseName::Day {
+        helpers::send_error("Not a valid transition!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
+    else if players[0].attributes.role != types::PlayerRole::Mod {
+        helpers::send_error("You are not the moderator!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
     else {
-        match &players[0].attributes {
-            None => {
-                helpers::send_error(format!("No attributes for player: {:?}", players[0].name),
-                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-            }
-            Some(attr) => {
-                if game_state.phase.name != types::PhaseName::Day {
-                    helpers::send_error("Not a valid transition!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else if attr.role != types::PlayerRole::Mod {
-                    helpers::send_error("You are not the moderator!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else {
-                    let seer_alive = game_state.players.clone().into_iter()
-                        .filter(|p| p.attributes.as_ref().unwrap().role == types::PlayerRole::Seer && p.attributes.as_ref().unwrap().alive)
-                        .count();
-                    match seer_alive {
-                        1 => {
-                            game_state.phase = types::Phase {
-                                name: types::PhaseName::Seer,
-                                data: HashMap::new(),
-                            };
-                        },
-                        _ => {
-                            game_state.phase = types::Phase {
-                                name: types::PhaseName::Werewolf,
-                                data: HashMap::new(),
-                            };
-                        },
-                    };
-                    helpers::update_state(item, game_state, table_name, event);
-                }
-            }
-        }
+        let seer_alive = game_state.players.clone().into_iter()
+            .filter(|p| p.attributes.role == types::PlayerRole::Seer && p.attributes.alive)
+            .count();
+        match seer_alive {
+            1 => {
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::Seer,
+                    data: HashMap::new(),
+                };
+            },
+            _ => {
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::Werewolf,
+                    data: HashMap::new(),
+                };
+            },
+        };
+        helpers::update_state(item, game_state, table_name, event);
     }
 }

@@ -82,60 +82,40 @@ fn move_to_werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap
         helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
                 event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
+    else if game_state.phase.name != types::PhaseName::Seer {
+        helpers::send_error("Not a valid transition!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
+    else if players[0].attributes.role != types::PlayerRole::Seer {
+        helpers::send_error("You are not the seer!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    }
     else {
-        match &players[0].attributes {
-            None => {
-                helpers::send_error(format!("No attributes for player: {:?}", players[0].name),
-                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-            }
-            Some(attr) => {
-                if game_state.phase.name != types::PhaseName::Seer {
-                    helpers::send_error("Not a valid transition!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else if attr.role != types::PlayerRole::Seer {
-                    helpers::send_error("You are not the seer!".to_string(),
-                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                }
-                else {
-                    let see_player: Vec<types::Player> = game_state.players.clone().into_iter()
-                        .filter(|p| p.name == see_player_name).collect();
-                    if see_player.len() != 1 {
-                        helpers::send_error("Invalid player to see!".to_string(),
-                            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                    }
-                    else {
-                        match see_player[0].attributes.clone() {
-                            None => {
-                                helpers::send_error("Player has no attributes!".to_string(),
-                                    event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                            },
-                            Some(attr) => {
-                                if attr.visible_to.contains(&format!("{:?}", types::PlayerRole::Seer)) || !attr.alive {
-                                    helpers::send_error("Player is already seen!".to_string(),
-                                        event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
-                                }
-                                else {
-                                    let mut new_players = game_state.players.clone();
-                                    new_players.retain(|p| p.name != see_player_name);
-                                    let mut new_attributes = see_player[0].attributes.clone().unwrap();
-                                    new_attributes.visible_to.push(format!("{:?}", types::PlayerRole::Seer));
-                                    let mut new_seen_player = see_player[0].clone();
-                                    new_seen_player.attributes = see_player[0].attributes.clone();
-                                    new_seen_player.attributes = Some(new_attributes);
-                                    new_players.push(new_seen_player);
-                                    game_state.players = new_players;
-                                    game_state.phase = types::Phase {
-                                        name: types::PhaseName::Werewolf,
-                                        data: HashMap::new(),
-                                    };
-                                    helpers::update_state(item, game_state, table_name, event);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        let see_player: Vec<types::Player> = game_state.players.clone().into_iter()
+            .filter(|p| p.name == see_player_name).collect();
+        if see_player.len() != 1 {
+            helpers::send_error("Invalid player to see!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        }
+        else if see_player[0].attributes.visible_to.contains(&format!("{:?}", types::PlayerRole::Seer)) || !see_player[0].attributes.alive {
+            helpers::send_error("Player is already seen!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        }
+        else {
+            let mut new_players = game_state.players.clone();
+            new_players.retain(|p| p.name != see_player_name);
+            let mut new_attributes = see_player[0].attributes.clone();
+            new_attributes.visible_to.push(format!("{:?}", types::PlayerRole::Seer));
+            let mut new_seen_player = see_player[0].clone();
+            new_seen_player.attributes = see_player[0].attributes.clone();
+            new_seen_player.attributes = new_attributes;
+            new_players.push(new_seen_player);
+            game_state.players = new_players;
+            game_state.phase = types::Phase {
+                name: types::PhaseName::Werewolf,
+                data: HashMap::new(),
+            };
+            helpers::update_state(item, game_state, table_name, event);
         }
     }
 }

@@ -89,30 +89,26 @@ fn broadcast(player: &types::Player, game_state: types::GameState) {
 fn filter_state(player: &types::Player, game_state: types::GameState) -> types::GameState {
     let mut new_state = game_state.clone();
     if game_state.phase.name == types::PhaseName::Werewolf && 
-        !vec![types::PlayerRole::Mod, types::PlayerRole::Werewolf].contains(&player.attributes.as_ref().unwrap().role) {
+        !vec![types::PlayerRole::Mod, types::PlayerRole::Werewolf].contains(&player.attributes.role) {
             new_state.phase.data = HashMap::new();
     }
     new_state.players = new_state.players.into_iter().map(|p| {
-        let new_attributes_option = p.attributes.clone();
+        let mut new_attributes = p.attributes.clone();
         let mut new_player = p.clone();
         new_player.secret = "".to_string();
         new_player.id = "".to_string();
         if game_state.phase.name != types::PhaseName::End {
-            if let Some(mut new_attributes) = new_attributes_option {
-                if let Some(player_attributes) = player.attributes.clone() {
-                    if p.name != player.name && new_attributes.alive && new_attributes.role != types::PlayerRole::Mod {
-                        if !new_attributes.visible_to.contains(&format!("{:?}", player_attributes.role)) {
-                            new_attributes.role = types::PlayerRole::Unknown;
-                            new_attributes.team = types::PlayerTeam::Unknown;
-                        }
-                        else if player.attributes.as_ref().unwrap().role == types::PlayerRole::Seer {
-                            new_attributes.role = types::PlayerRole::Unknown;
-                        }
-                    }
-                    new_attributes.visible_to = vec![];
-                    new_player.attributes = Some(new_attributes);
+            if p.name != player.name && new_attributes.alive && new_attributes.role != types::PlayerRole::Mod {
+                if !new_attributes.visible_to.contains(&format!("{:?}", player.attributes.role)) {
+                    new_attributes.role = types::PlayerRole::Unknown;
+                    new_attributes.team = types::PlayerTeam::Unknown;
+                }
+                else if player.attributes.role == types::PlayerRole::Seer {
+                    new_attributes.role = types::PlayerRole::Unknown;
                 }
             }
+            new_attributes.visible_to = vec![];
+            new_player.attributes = new_attributes;
         }
         new_player
     }).collect();
