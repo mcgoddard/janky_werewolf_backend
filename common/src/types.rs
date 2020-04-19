@@ -20,6 +20,7 @@ pub enum PlayerRole {
     Seer,
     Werewolf,
     Mod,
+    Bodyguard,
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
@@ -51,6 +52,7 @@ pub enum PhaseName {
     Lobby,
     Day,
     Seer,
+    Bodyguard,
     Werewolf,
     End,
 }

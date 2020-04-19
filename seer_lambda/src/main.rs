@@ -110,11 +110,19 @@ fn move_to_werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap
             new_seen_player.attributes = see_player[0].attributes.clone();
             new_seen_player.attributes = new_attributes;
             new_players.push(new_seen_player);
-            game_state.players = new_players;
-            game_state.phase = types::Phase {
-                name: types::PhaseName::Werewolf,
-                data: HashMap::new(),
-            };
+            game_state.players = new_players.clone();
+            if helpers::living_players_with_role(types::PlayerRole::Bodyguard, new_players) > 0 {
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::Bodyguard,
+                    data: HashMap::new(),
+                };
+            }
+            else {
+                game_state.phase = types::Phase {
+                    name: types::PhaseName::Werewolf,
+                    data: HashMap::new(),
+                };
+            }
             helpers::update_state(item, game_state, table_name, event);
         }
     }

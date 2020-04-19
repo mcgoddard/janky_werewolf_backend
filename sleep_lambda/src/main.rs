@@ -90,23 +90,24 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
             event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
     else {
-        let seer_alive = game_state.players.clone().into_iter()
-            .filter(|p| p.attributes.role == types::PlayerRole::Seer && p.attributes.alive)
-            .count();
-        match seer_alive {
-            1 => {
-                game_state.phase = types::Phase {
-                    name: types::PhaseName::Seer,
-                    data: HashMap::new(),
-                };
-            },
-            _ => {
-                game_state.phase = types::Phase {
-                    name: types::PhaseName::Werewolf,
-                    data: HashMap::new(),
-                };
-            },
-        };
+        if helpers::living_players_with_role(types::PlayerRole::Seer, players.clone()) > 0 {
+            game_state.phase = types::Phase {
+                name: types::PhaseName::Seer,
+                data: HashMap::new(),
+            };
+        }
+        else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, players) > 0 {
+            game_state.phase = types::Phase {
+                name: types::PhaseName::Bodyguard,
+                data: HashMap::new(),
+            };
+        }
+        else {
+            game_state.phase = types::Phase {
+                name: types::PhaseName::Werewolf,
+                data: HashMap::new(),
+            };
+        }
         helpers::update_state(item, game_state, table_name, event);
     }
 }

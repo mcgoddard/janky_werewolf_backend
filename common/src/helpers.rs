@@ -138,3 +138,7 @@ pub fn check_game_over(players: Vec<types::Player>) -> bool {
     let evil_players: Vec<types::Player> = players.into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).collect();
     evil_players.len() >= good_players.len() || evil_players.is_empty()
 }
+
+pub fn living_players_with_role(role: types::PlayerRole, players: Vec<types::Player>) -> u32 {
+    players.into_iter().filter(|p| p.attributes.role == role && p.attributes.alive).count() as u32
+}
