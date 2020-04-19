@@ -112,25 +112,35 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                 let num_other_votes = new_phase.data.clone().into_iter()
                     .filter(|(_, value)| value.clone() != eat_player_name).count();
                 if num_other_votes < 1 {
-                    new_players.retain(|p| p.name != eat_player_name);
-                    let mut new_eaten_player = eat_player[0].clone();
-                    let mut new_attributes = eat_player[0].attributes.clone();
-                    new_attributes.alive = false;
-                    new_eaten_player.attributes = new_attributes;
-                    new_players.push(new_eaten_player);
-                    if helpers::check_game_over(new_players.clone()) {
-                        let mut new_phase_data = HashMap::new();
-                        new_phase_data.insert("winner".to_string(), format!("{:?}", types::PlayerTeam::Evil));
-                        new_phase = types::Phase {
-                            name: types::PhaseName::End,
-                            data: new_phase_data,
-                        };
+                    let last_protected_player = game_state.internal_state.get("last_guarded").unwrap_or(&"".to_string()).clone();
+                    if last_protected_player == eat_player_name &&
+                        helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players) > 0 {
+                            new_phase = types::Phase {
+                                name: types::PhaseName::Day,
+                                data: HashMap::new(),
+                            };
                     }
                     else {
-                        new_phase = types::Phase {
-                            name: types::PhaseName::Day,
-                            data: HashMap::new(),
-                        };
+                        new_players.retain(|p| p.name != eat_player_name);
+                        let mut new_eaten_player = eat_player[0].clone();
+                        let mut new_attributes = eat_player[0].attributes.clone();
+                        new_attributes.alive = false;
+                        new_eaten_player.attributes = new_attributes;
+                        new_players.push(new_eaten_player);
+                        if helpers::check_game_over(new_players.clone()) {
+                            let mut new_phase_data = HashMap::new();
+                            new_phase_data.insert("winner".to_string(), format!("{:?}", types::PlayerTeam::Evil));
+                            new_phase = types::Phase {
+                                name: types::PhaseName::End,
+                                data: new_phase_data,
+                            };
+                        }
+                        else {
+                            new_phase = types::Phase {
+                                name: types::PhaseName::Day,
+                                data: HashMap::new(),
+                            };
+                        }
                     }
                 }
             }

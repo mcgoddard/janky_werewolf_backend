@@ -59,7 +59,6 @@ fn process_record(record: &types::DDBRecord) {
                                     let players = new_image.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
                                         let new_image = new_image.clone();
-                                        let p = p.clone();
                                         thread::spawn(move || {
                                             let filtered_state = filter_state(&p, new_image);
                                             broadcast(&p, filtered_state);
@@ -102,6 +101,12 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
         !vec![types::PlayerRole::Mod, types::PlayerRole::Werewolf].contains(&player.attributes.role) {
             new_state.phase.data = HashMap::new();
     }
+    if game_state.phase.name == types::PhaseName::Bodyguard && player.attributes.role == types::PlayerRole::Bodyguard {
+        let mut phase_data = HashMap::new();
+        phase_data.insert("last_guarded".to_string(), game_state.internal_state.get("last_guarded").unwrap_or(&"".to_string()).clone());
+        new_state.phase.data = phase_data;
+    }
+    new_state.internal_state = HashMap::new();
     new_state.players = new_state.players.into_iter().map(|p| {
         let mut new_attributes = p.attributes.clone();
         let mut new_player = p.clone();

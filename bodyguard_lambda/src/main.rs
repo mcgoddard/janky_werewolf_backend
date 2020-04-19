@@ -35,7 +35,7 @@ thread_local!(
 );
 
 #[derive(Deserialize, Serialize, Clone)]
-struct SleepEvent {
+struct BodyguardEvent {
     action: String,
     data: EventData,
 }
@@ -43,6 +43,7 @@ struct SleepEvent {
 #[derive(Deserialize, Serialize, Clone)]
 struct EventData {
     code: String,
+    player: String,
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -55,12 +56,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
-    let event: SleepEvent = serde_json::from_str(&body).unwrap();
+    let event: BodyguardEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = helpers::get_state(table_name, e.clone(), event.data.code);
-    if let Some(item) = current_game { move_to_sleep(e, item) }
+    let current_game = helpers::get_state(table_name, e.clone(), event.data.code.clone());
+    if let Some(item) = current_game { move_to_werewolf(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -71,7 +72,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     })
 }
 
-fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>) {
+fn move_to_werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, protect_player_name: String) {
     let table_name = env::var("tableName").unwrap();
 
     let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
@@ -81,33 +82,31 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
         helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
                 event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
-    else if game_state.phase.name != types::PhaseName::Day {
+    else if game_state.phase.name != types::PhaseName::Bodyguard {
         helpers::send_error("Not a valid transition!".to_string(),
             event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
-    else if players[0].attributes.role != types::PlayerRole::Mod {
-        helpers::send_error("You are not the moderator!".to_string(),
+    else if players[0].attributes.role != types::PlayerRole::Bodyguard {
+        helpers::send_error("You are not the bodyguard!".to_string(),
             event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
     }
     else {
-        if helpers::living_players_with_role(types::PlayerRole::Seer, game_state.players.clone()) > 0 {
-            game_state.phase = types::Phase {
-                name: types::PhaseName::Seer,
-                data: HashMap::new(),
-            };
-        }
-        else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
-            game_state.phase = types::Phase {
-                name: types::PhaseName::Bodyguard,
-                data: HashMap::new(),
-            };
+        let protect_player: Vec<types::Player> = game_state.players.clone().into_iter()
+            .filter(|p| p.name == protect_player_name && p.attributes.alive).collect();
+        if protect_player.len() != 1 || protect_player_name == players[0].name || 
+            game_state.internal_state.get("last_guarded").unwrap_or(&"".to_string()).clone() == protect_player_name {
+            helpers::send_error("Invalid player to protect!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
         }
         else {
+            let mut internal_state = HashMap::new();
+            internal_state.insert("last_guarded".to_string(), protect_player_name);
+            game_state.internal_state = internal_state;
             game_state.phase = types::Phase {
                 name: types::PhaseName::Werewolf,
                 data: HashMap::new(),
             };
+            helpers::update_state(item, game_state, table_name, event);
         }
-        helpers::update_state(item, game_state, table_name, event);
     }
 }

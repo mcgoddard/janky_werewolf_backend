@@ -116,6 +116,7 @@ pub struct GameState {
     pub lobby_id: String,
     pub phase: Phase,
     pub players: Vec<Player>,
+    pub internal_state: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

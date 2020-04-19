@@ -45,7 +45,8 @@ struct StartEvent {
 #[derive(Deserialize, Serialize, Clone)]
 struct EventData {
     werewolves: u32,
-    bodyguards: Option<u32>,
+    bodyguard: Option<bool>,
+    seer: Option<bool>,
     code: String,
 }
 
@@ -96,7 +97,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
                                 e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
                         },
                         Some(item) => {
-                            move_to_day(e, item, event.data.werewolves, event.data.bodyguards);
+                            move_to_day(e, item, event.data.werewolves, event.data.bodyguard.unwrap_or(false), event.data.seer.unwrap_or(true));
                         },
                     }
                 }
@@ -113,18 +114,14 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
     })
 }
 
-fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguards_opt: Option<u32>) {
+fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool) {
     let table_name = env::var("tableName").unwrap();
 
     let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
-    let mut bodyguards = 0;
-    if let Some(b) = bodyguards_opt {
-        bodyguards = b;
-    }
-
-    let seers = 1;
-    let roles_count = werewolves + bodyguards + seers + 1;
+    let mut roles_count = werewolves + 1;
+    if bodyguard { roles_count += 1 }
+    if seer { roles_count += 1 }
     if roles_count > game_state.players.len() as u32 {
         error!("Roles: {}, Players: {}", roles_count, game_state.players.len());
         helpers::send_error("More roles than players!".to_string(),
@@ -133,27 +130,29 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     }
     
     let mut roles: Vec<types::PlayerAttributes> = vec![];
-    let num_villagers = (game_state.players.len() as u32 - werewolves - bodyguards - seers) - 1;
-    roles.push(types::PlayerAttributes {
-        role: types::PlayerRole::Seer,
-        team: types::PlayerTeam::Good,
-        alive: true,
-        visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
-    });
+    let num_villagers = game_state.players.len() as u32 - roles_count;
+    if seer {
+        roles.push(types::PlayerAttributes {
+            role: types::PlayerRole::Seer,
+            team: types::PlayerTeam::Good,
+            alive: true,
+            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+        });
+    }
+    if bodyguard {
+        roles.push(types::PlayerAttributes {
+            role: types::PlayerRole::Bodyguard,
+            team: types::PlayerTeam::Good,
+            alive: true,
+            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+        });
+    }
     for _ in 0..werewolves {
         roles.push(types::PlayerAttributes {
             role: types::PlayerRole::Werewolf,
             team: types::PlayerTeam::Evil,
             alive: true,
             visible_to: vec![format!("{:?}", types::PlayerRole::Mod), format!("{:?}", types::PlayerRole::Werewolf)],
-        });
-    }
-    for _ in 0..bodyguards {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Bodyguard,
-            team: types::PlayerTeam::Good,
-            alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
         });
     }
     for _ in 0..num_villagers {

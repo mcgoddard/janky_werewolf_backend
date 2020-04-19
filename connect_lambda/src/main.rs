@@ -99,7 +99,8 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
                 alive: true,
                 visible_to: vec!["All".to_string()],
             },
-        }]
+        }],
+        internal_state: HashMap::new(),
     };
     let mut item_hashmap = HashMap::new();
     item_hashmap.insert("lobby_id".to_string(), AttributeValue {

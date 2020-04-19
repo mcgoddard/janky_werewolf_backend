@@ -135,13 +135,13 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
                     name: types::PhaseName::Seer,
                     data: HashMap::new(),
                 };
-                if helpers::living_players_with_role(types::PlayerRole::Seer, players.clone()) > 0 {
+                if helpers::living_players_with_role(types::PlayerRole::Seer, game_state.players.clone()) > 0 {
                     game_state.phase = types::Phase {
                         name: types::PhaseName::Seer,
                         data: HashMap::new(),
                     };
                 }
-                else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, players) > 0 {
+                else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
                     game_state.phase = types::Phase {
                         name: types::PhaseName::Bodyguard,
                         data: HashMap::new(),
