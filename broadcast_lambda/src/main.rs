@@ -9,6 +9,7 @@ use std;
 use std::error::Error;
 use std::env;
 use std::collections::HashMap;
+use std::thread;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 use rusoto_apigatewaymanagementapi::{
@@ -56,9 +57,18 @@ fn process_record(record: &types::DDBRecord) {
                                 Some(new_image) => {
                                     let new_image: types::GameState = serde_json::from_str(&new_image.data["S"]).unwrap();
                                     let players = new_image.players.clone();
-                                    for player in &players {
-                                        let filtered_state = filter_state(player, new_image.clone());
-                                        broadcast(player, filtered_state);
+                                    let broadcasts = players.into_iter().map(|p| {
+                                        let new_image = new_image.clone();
+                                        let p = p.clone();
+                                        thread::spawn(move || {
+                                            let filtered_state = filter_state(&p, new_image);
+                                            broadcast(&p, filtered_state);
+                                        })
+                                    }).collect::<Vec<_>>();
+                                    for b in broadcasts {
+                                        if let Err(err) = b.join() {
+                                            log::error!("Error broadcasting: {:?}", err);
+                                        }
                                     }
                                 },
                                 None => log::error!("No new image"),
