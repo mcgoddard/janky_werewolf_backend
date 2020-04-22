@@ -127,20 +127,26 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                         new_attributes.alive = false;
                         new_eaten_player.attributes = new_attributes;
                         new_players.push(new_eaten_player);
-                        if helpers::check_game_over(new_players.clone()) {
-                            let mut new_phase_data = HashMap::new();
-                            new_phase_data.insert("winner".to_string(), format!("{:?}", types::PlayerTeam::Evil));
-                            new_phase = types::Phase {
-                                name: types::PhaseName::End,
-                                data: new_phase_data,
-                            };
-                        }
-                        else {
-                            new_phase = types::Phase {
-                                name: types::PhaseName::Day,
-                                data: HashMap::new(),
-                            };
-                        }
+                        match helpers::check_game_over(new_players.clone()) {
+                            Some(winners) => {
+                                let mut new_phase_data = HashMap::new();
+                                match winners.len() {
+                                    1 => new_phase_data.insert("winner".to_string(), format!("{:?}", winners[0])),
+                                    _ => new_phase_data.insert("winner".to_string(), winners.into_iter().map(|w| format!("{:?}", w)).collect::<Vec<String>>().join(", "))
+                                };
+                                
+                                new_phase = types::Phase {
+                                    name: types::PhaseName::End,
+                                    data: new_phase_data,
+                                };
+                            },
+                            None => {
+                                new_phase = types::Phase {
+                                    name: types::PhaseName::Day,
+                                    data: HashMap::new(),
+                                };
+                            },
+                        };
                     }
                 }
             }

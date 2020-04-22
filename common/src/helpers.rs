@@ -133,10 +133,27 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
     None
 }
 
-pub fn check_game_over(players: Vec<types::Player>) -> bool {
+pub fn check_game_over(players: Vec<types::Player>) -> Option<Vec<types::PlayerTeam>> {
     let good_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Good && p.attributes.alive).collect();
-    let evil_players: Vec<types::Player> = players.into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).collect();
-    evil_players.len() >= good_players.len() || evil_players.is_empty()
+    let evil_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).collect();
+    let mut winners = None;
+    if evil_players.len() >= good_players.len() || evil_players.is_empty() {
+        let mut teams = vec![];
+        if players.clone().into_iter().filter(|p| p.attributes.role == types::PlayerRole::Tanner).count() > 0 && 
+            living_players_with_role(types::PlayerRole::Tanner, players.clone()) < 1 {
+            teams.push(types::PlayerTeam::Tanner);
+        }
+        match players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).count() {
+            0 => {
+                teams.push(types::PlayerTeam::Good);
+            },
+            _ => {
+                teams.push(types::PlayerTeam::Evil);
+            }
+        };
+        winners = Some(teams);
+    }
+    winners
 }
 
 pub fn living_players_with_role(role: types::PlayerRole, players: Vec<types::Player>) -> u32 {

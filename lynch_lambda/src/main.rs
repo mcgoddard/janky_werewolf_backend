@@ -110,49 +110,45 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
             new_killing_player.attributes = killing_player[0].attributes.clone();
             new_killing_player.attributes = new_attributes;
             new_players.push(new_killing_player);
-            if helpers::check_game_over(new_players.clone()) {
-                let mut new_phase_data = HashMap::new();
-                let winner: types::PlayerTeam;
-                match new_players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive)
-                    .count() {
-                    0 => {
-                        winner = types::PlayerTeam::Good;
-                    },
-                    _ => {
-                        winner = types::PlayerTeam::Evil;
-                    }
-                };
-                game_state.players = new_players;
-                new_phase_data.insert("winner".to_string(), format!("{:?}", winner));
-                game_state.phase = types::Phase {
-                    name: types::PhaseName::End,
-                    data: new_phase_data,
-                };
-            }
-            else {
-                game_state.players = new_players;
-                game_state.phase = types::Phase {
-                    name: types::PhaseName::Seer,
-                    data: HashMap::new(),
-                };
-                if helpers::living_players_with_role(types::PlayerRole::Seer, game_state.players.clone()) > 0 {
+            match helpers::check_game_over(new_players.clone()) {
+                Some(winners) => {
+                    let mut new_phase_data = HashMap::new();
+                    game_state.players = new_players;
+                    match winners.len() {
+                        1 => new_phase_data.insert("winner".to_string(), format!("{:?}", winners[0])),
+                        _ => new_phase_data.insert("winner".to_string(), winners.into_iter().map(|w| format!("{:?}", w)).collect::<Vec<String>>().join(", ")),
+                    };
+                    
+                    game_state.phase = types::Phase {
+                        name: types::PhaseName::End,
+                        data: new_phase_data,
+                    };
+                },
+                None => {
+                    game_state.players = new_players;
                     game_state.phase = types::Phase {
                         name: types::PhaseName::Seer,
                         data: HashMap::new(),
                     };
-                }
-                else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
-                    game_state.phase = types::Phase {
-                        name: types::PhaseName::Bodyguard,
-                        data: HashMap::new(),
-                    };
-                }
-                else {
-                    game_state.phase = types::Phase {
-                        name: types::PhaseName::Werewolf,
-                        data: HashMap::new(),
-                    };
-                }
+                    if helpers::living_players_with_role(types::PlayerRole::Seer, game_state.players.clone()) > 0 {
+                        game_state.phase = types::Phase {
+                            name: types::PhaseName::Seer,
+                            data: HashMap::new(),
+                        };
+                    }
+                    else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
+                        game_state.phase = types::Phase {
+                            name: types::PhaseName::Bodyguard,
+                            data: HashMap::new(),
+                        };
+                    }
+                    else {
+                        game_state.phase = types::Phase {
+                            name: types::PhaseName::Werewolf,
+                            data: HashMap::new(),
+                        };
+                    }
+                },
             }
             helpers::update_state(item, game_state, table_name, event);
         }

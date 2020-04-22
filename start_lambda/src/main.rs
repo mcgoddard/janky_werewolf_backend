@@ -48,6 +48,7 @@ struct EventData {
     bodyguard: Option<bool>,
     seer: Option<bool>,
     lycan: Option<bool>,
+    tanner: Option<bool>,
     code: String,
 }
 
@@ -98,8 +99,9 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
                                 e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
                         },
                         Some(item) => {
-                            move_to_day(e, item, event.data.werewolves, event.data.bodyguard.unwrap_or(false), event.data.seer.unwrap_or(true),
-                                event.data.lycan.unwrap_or(false));
+                            let data = event.data;
+                            move_to_day(e, item, data.werewolves, data.bodyguard.unwrap_or(false), data.seer.unwrap_or(true),
+                                data.lycan.unwrap_or(false), data.tanner.unwrap_or(false));
                         },
                     }
                 }
@@ -117,7 +119,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
 }
 
 fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool,
-        lycan: bool) {
+        lycan: bool, tanner: bool) {
     let table_name = env::var("tableName").unwrap();
 
     let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
@@ -126,6 +128,7 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     if bodyguard { roles_count += 1 }
     if seer { roles_count += 1 }
     if lycan { roles_count += 1 }
+    if tanner { roles_count += 1 }
     if roles_count > game_state.players.len() as u32 {
         error!("Roles: {}, Players: {}", roles_count, game_state.players.len());
         helpers::send_error("More roles than players!".to_string(),
@@ -154,6 +157,14 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     if lycan {
         roles.push(types::PlayerAttributes {
             role: types::PlayerRole::Lycan,
+            team: types::PlayerTeam::Good,
+            alive: true,
+            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+        });
+    }
+    if tanner {
+        roles.push(types::PlayerAttributes {
+            role: types::PlayerRole::Tanner,
             team: types::PlayerTeam::Good,
             alive: true,
             visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],

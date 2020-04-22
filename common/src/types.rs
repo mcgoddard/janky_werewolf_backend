@@ -22,6 +22,7 @@ pub enum PlayerRole {
     Mod,
     Bodyguard,
     Lycan,
+    Tanner,
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
@@ -29,6 +30,7 @@ pub enum PlayerTeam {
     Unknown,
     Good,
     Evil,
+    Tanner,
     Mod,
 }
 
