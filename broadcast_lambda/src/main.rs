@@ -120,6 +120,9 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
                 }
                 else if player.attributes.role == types::PlayerRole::Seer {
                     new_attributes.role = types::PlayerRole::Unknown;
+                    if p.attributes.role == types::PlayerRole::Lycan {
+                        new_attributes.team = types::PlayerTeam::Evil;
+                    }
                 }
             }
             new_attributes.visible_to = vec![];

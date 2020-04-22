@@ -21,6 +21,7 @@ pub enum PlayerRole {
     Werewolf,
     Mod,
     Bodyguard,
+    Lycan,
 }
 
 #[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
