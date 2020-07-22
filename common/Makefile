@@ -1,10 +1,10 @@
 SHELL := /bin/bash
 
 install:
-	curl https://sh.rustup.rs -sSf | sh
+	curl https://sh.rustup.rs -sSf | sh -s -- -y
 	source ~/.cargo/env
 	~/.cargo/bin/rustup target add x86_64-unknown-linux-musl
-	sudo apt-get install musl-tools
+	sudo apt-get install -y musl-tools
 
 build:
 	cargo build --release --target x86_64-unknown-linux-musl
