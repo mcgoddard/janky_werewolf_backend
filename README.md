@@ -13,7 +13,7 @@ Afterwards you will have Rust and it's toolchains installed on your system for t
 ## Building
 To build the various lambdas that make up the service run `make build_all` from the project root. This can take some time on a fresh install. This runs the `make build` command in each lambda subdirectory.
 
-If you only want to build/rebuild a single lambda simply navigate to that directory and use `make build` or use `make x_lambda build` from the project root.
+If you only want to build/rebuild a single lambda simply navigate to that directory and use `make build` or use `t=x_lambda make build` from the project root.
 
 ## Deploying
 Make sure your system is set up with a valid AWS SDK config defining the `jankywerewolf_admin` profile.

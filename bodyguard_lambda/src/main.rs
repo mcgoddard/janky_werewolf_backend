@@ -9,7 +9,6 @@ extern crate rand;
 
 use lambda::error::HandlerError;
 
-use std;
 use std::{cell::RefCell, env};
 use std::error::Error;
 use std::collections::HashMap;

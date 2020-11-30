@@ -143,7 +143,7 @@ pub fn check_game_over(players: Vec<types::Player>) -> Option<Vec<types::PlayerT
             living_players_with_role(types::PlayerRole::Tanner, players.clone()) < 1 {
             teams.push(types::PlayerTeam::Tanner);
         }
-        match players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).count() {
+        match players.into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).count() {
             0 => {
                 teams.push(types::PlayerTeam::Good);
             },

@@ -5,7 +5,6 @@ extern crate simple_logger;
 
 use lambda::error::HandlerError;
 
-use std;
 use std::error::Error;
 use std::env;
 use std::collections::HashMap;

@@ -1,0 +1,17 @@
+name: Build
+
+on: push
+
+jobs:
+  build:
+    name: Install, lint & build
+    runs-on: rust:slim
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Install
+        run: make install
+      - name: Lint
+        run: make clippy_all
+      - name: Build
+        run: make build_all

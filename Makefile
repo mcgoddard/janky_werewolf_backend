@@ -14,13 +14,25 @@ build_all:
 		$(MAKE) -C $$package build;\
 	done
 
+clean_all:
+	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+		$(MAKE) -C $$package clean;\
+	done
+
+clippy_all:
+	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+		$(MAKE) -C $$package clippy;\
+	done
+
 deploy: export AWS_PROFILE = jankywerewolf_admin
 deploy: build_all
 	$(MAKE) -C terraform/main apply
 
+install: export AWS_PROFILE = jankywerewolf_admin
 install:
 	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
 		$(MAKE) -C $$package install;\
 	done
 	$(MAKE) -C terraform install
+	$(MAKE) -C terraform/main init
 	$(MAKE) -C tests install

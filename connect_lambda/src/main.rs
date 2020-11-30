@@ -9,7 +9,6 @@ extern crate rand;
 
 use lambda::error::HandlerError;
 
-use std;
 use std::env;
 use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -91,8 +90,8 @@ fn new_game(event: types::ApiGatewayWebsocketProxyRequest, name: String, secret:
         },
         players: vec![types::Player{
             id: event.request_context.connection_id.clone().unwrap(),
-            name: name,
-            secret: secret,
+            name,
+            secret,
             attributes: types::PlayerAttributes {
                 role: types::PlayerRole::Unknown,
                 team: types::PlayerTeam::Unknown,
