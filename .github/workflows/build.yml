@@ -5,7 +5,8 @@ on: push
 jobs:
   build:
     name: Install, lint & build
-    runs-on: rust:slim
+    runs-on: ubuntu-latest
+    container: rust:slim
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
