@@ -10,8 +10,12 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Install
-        run: make install
+      - name: Add make
+        run: apt update && apt install -y make libfindbin-libs-perl musl-tools
+      - name: Add clippy
+        run: rustup component add clippy --toolchain 1.48.0-x86_64-unknown-linux-gnu
+      - name: Add toolchain
+        run: rustup target add x86_64-unknown-linux-musl
       - name: Lint
         run: make clippy_all
       - name: Build
