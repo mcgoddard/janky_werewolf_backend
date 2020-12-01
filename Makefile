@@ -38,6 +38,6 @@ install:
 	$(MAKE) -C tests install
 
 ci_install:
-	apt update && apt install -y make libfindbin-libs-perl musl-tools
+	apt update && apt install -y libfindbin-libs-perl musl-tools
 	rustup component add clippy --toolchain 1.48.0-x86_64-unknown-linux-gnu
 	rustup target add x86_64-unknown-linux-musl

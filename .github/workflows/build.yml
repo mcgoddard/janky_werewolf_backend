@@ -29,7 +29,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-
       - name: Add project deps
-        run: make ci_install
+        run: apt install -y make && make ci_install
       - name: Lint
         run: t=api_lambda make clippy
       - name: Build
@@ -60,7 +60,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-
       - name: Add project deps
-        run: make ci_install
+        run: apt install -y make && make ci_install
       - name: Lint
         run: t=broadcast_lambda make clippy
       - name: Build
