@@ -10,17 +10,17 @@ clippy:
 	$(MAKE) -C ${t} clippy
 
 build_all:
-	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+	for package in common broadcast_lambda api_lambda; do\
 		$(MAKE) -C $$package build;\
 	done
 
 clean_all:
-	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+	for package in common broadcast_lambda api_lambda; do\
 		$(MAKE) -C $$package clean;\
 	done
 
 clippy_all:
-	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+	for package in common broadcast_lambda api_lambda; do\
 		$(MAKE) -C $$package clippy;\
 	done
 
@@ -30,9 +30,14 @@ deploy: build_all
 
 install: export AWS_PROFILE = jankywerewolf_admin
 install:
-	for package in common broadcast_lambda connect_lambda start_lambda sleep_lambda lynch_lambda seer_lambda werewolf_lambda bodyguard_lambda; do\
+	for package in common broadcast_lambda api_lambda; do\
 		$(MAKE) -C $$package install;\
 	done
 	$(MAKE) -C terraform install
 	$(MAKE) -C terraform/main init
 	$(MAKE) -C tests install
+
+ci_install:
+	apt update && apt install -y make libfindbin-libs-perl musl-tools
+	rustup component add clippy --toolchain 1.48.0-x86_64-unknown-linux-gnu
+	rustup target add x86_64-unknown-linux-musl

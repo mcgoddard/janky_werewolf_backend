@@ -3,20 +3,65 @@ name: Build
 on: push
 
 jobs:
-  build:
-    name: Install, lint & build
+  build_api:
+    name: API install, lint & build
     runs-on: ubuntu-latest
     container: rust:slim
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Add make
-        run: apt update && apt install -y make libfindbin-libs-perl musl-tools
-      - name: Add clippy
-        run: rustup component add clippy --toolchain 1.48.0-x86_64-unknown-linux-gnu
-      - name: Add toolchain
-        run: rustup target add x86_64-unknown-linux-musl
+      - name: Cache common cargo crates
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-common-cargo-crates
+        with:
+          path: common/target
+          key: ${{ runner.os }}-${{ hashFiles('common/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - name: Cache lambda cargo crates
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-api-cargo-crates
+        with:
+          path: api_lambda/target
+          key: ${{ runner.os }}-${{ hashFiles('api_lambda/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - name: Add project deps
+        run: make ci_install
       - name: Lint
-        run: make clippy_all
+        run: t=api_lambda make clippy
       - name: Build
-        run: make build_all
+        run: t=api_lambda make build
+  build_broadcast:
+    name: Broadcast install, lint & build
+    runs-on: ubuntu-latest
+    container: rust:slim
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Cache common cargo crates
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-common-cargo-crates
+        with:
+          path: common/target
+          key: ${{ runner.os }}-${{ hashFiles('common/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - name: Cache lambda cargo crates
+        uses: actions/cache@v2
+        env:
+          cache-name: cache-broadcast-cargo-crates
+        with:
+          path: broadcast_lambda/target
+          key: ${{ runner.os }}-${{ hashFiles('broadcast_lambda/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-
+      - name: Add project deps
+        run: make ci_install
+      - name: Lint
+        run: t=broadcast_lambda make clippy
+      - name: Build
+        run: t=broadcast_lambda make build

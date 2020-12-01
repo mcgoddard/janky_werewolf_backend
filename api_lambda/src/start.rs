@@ -1,39 +1,19 @@
-#[macro_use]
-extern crate lambda_runtime as lambda;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
-extern crate simple_logger;
-extern crate rand;
-
 use lambda::error::HandlerError;
 
-use std::{cell::RefCell, env};
-use std::error::Error;
+use std::env;
 use std::collections::HashMap;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, AttributeValue, GetItemInput, GetItemOutput,
+        DynamoDb, AttributeValue, GetItemInput, GetItemOutput,
     },
 };
 use futures::Future;
 use rand::Rng;
-use tokio::runtime::Runtime;
 
 use common::{types, helpers};
-
-thread_local!(
-    static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
-);
-
-thread_local!(
-    static RT: RefCell<Runtime> =
-        RefCell::new(Runtime::new().expect("failed to initialize runtime"));
-);
 
 #[derive(Deserialize, Serialize, Clone)]
 struct StartEvent {
@@ -51,14 +31,7 @@ struct EventData {
     code: String,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    simple_logger::init_with_level(log::Level::Info)?;
-    lambda!(my_handler);
-
-    Ok(())
-}
-
-fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_start(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: StartEvent = serde_json::from_str(&body).unwrap();
@@ -71,7 +44,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
         ..Default::default()
     });
 
-    let result = DDB.with(|ddb| {
+    let result = helpers::DDB.with(|ddb| {
         ddb.get_item(GetItemInput {
             table_name: table_name.clone(),
             key: ddb_keys,
@@ -81,7 +54,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, _c: lambda::Context) ->
         .map_err(types::RequestError::Get)
     });
 
-    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
+    match helpers::RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
             helpers::send_error(format!("Lobby not found: {:?}", err),

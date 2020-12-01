@@ -1,16 +1,6 @@
-#[macro_use]
-extern crate lambda_runtime as lambda;
-#[macro_use]
-extern crate serde_derive;
-#[macro_use]
-extern crate log;
-extern crate simple_logger;
-extern crate rand;
-
 use lambda::error::HandlerError;
 
 use std::env;
-use std::error::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
 
@@ -28,7 +18,7 @@ use futures::future::Future;
 use common::{types, helpers};
 
 #[derive(Deserialize, Serialize, Clone)]
-struct ConnectEvent {
+struct JoinEvent {
     action: String,
     data: EventData,
 }
@@ -40,17 +30,10 @@ struct EventData {
     code: Option<String>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
-    simple_logger::init_with_level(log::Level::Info)?;
-    lambda!(my_handler);
-
-    Ok(())
-}
-
-fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_join(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
-    let p: ConnectEvent = serde_json::from_str(&body).unwrap();
+    let p: JoinEvent = serde_json::from_str(&body).unwrap();
     
     if p.data.name == "" {
         error!("Empty name in request {}", c.aws_request_id);
