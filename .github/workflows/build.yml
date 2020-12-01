@@ -10,15 +10,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Cache common cargo crates
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-common-cargo-crates
-        with:
-          path: common/target
-          key: ${{ runner.os }}-${{ hashFiles('common/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-
       - name: Cache lambda cargo crates
         uses: actions/cache@v2
         env:
@@ -41,15 +32,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-      - name: Cache common cargo crates
-        uses: actions/cache@v2
-        env:
-          cache-name: cache-common-cargo-crates
-        with:
-          path: common/target
-          key: ${{ runner.os }}-${{ hashFiles('common/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-
       - name: Cache lambda cargo crates
         uses: actions/cache@v2
         env:
