@@ -25,6 +25,11 @@ jobs:
         run: t=api_lambda make clippy
       - name: Build
         run: t=api_lambda make build
+      - name: Store
+        uses: actions/upload-artifact@v2
+        with:
+          name: api-binary
+          path: api_lambda/release/bootstrap
   build_broadcast:
     name: Broadcast install, lint & build
     runs-on: ubuntu-latest
@@ -47,3 +52,35 @@ jobs:
         run: t=broadcast_lambda make clippy
       - name: Build
         run: t=broadcast_lambda make build
+      - name: Store
+        uses: actions/upload-artifact@v2
+        with:
+          name: broadcast-binary
+          path: broadcast_lambda/release/bootstrap
+  deploy:
+    name: Deploy terraform
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/master'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - name: Load API build
+        uses: actions/download-artifact@v2
+        with:
+          name: api-binary
+      - name: Load broadcast build
+        uses: actions/download-artifact@v2
+        with:
+          name: broadcast-binary
+      - name: Init terraform
+        working-directory: ./terraform/main
+        run: terraform init
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Apply terraform
+        working-directory: ./terraform/main
+        run: terraform apply -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

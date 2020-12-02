@@ -25,7 +25,7 @@ clippy_all:
 	done
 
 deploy: export AWS_PROFILE = jankywerewolf_admin
-deploy: build_all
+deploy:
 	$(MAKE) -C terraform/main apply
 
 install: export AWS_PROFILE = jankywerewolf_admin
