@@ -70,15 +70,12 @@ jobs:
         uses: actions/download-artifact@v2
         with:
           name: api-binary
-          path: api_lambda/release/bootstrap
-      - name: Display structure of downloaded files
-        run: ls -R
-        working-directory: api_lambda/release
+          path: api_lambda/release
       - name: Load broadcast build
         uses: actions/download-artifact@v2
         with:
           name: broadcast-binary
-          path: broadcast_lambda/release/bootstrap
+          path: broadcast_lambda/release
       - name: Init terraform
         working-directory: ./terraform/main
         run: terraform init
