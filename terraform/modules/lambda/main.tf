@@ -5,7 +5,7 @@ data "archive_file" "zip" {
 }
 
 resource "aws_lambda_function" "lambda" {
-  function_name = var.lambda_name
+  function_name = "${var.environment}-${var.lambda_name}"
 
   filename         = data.archive_file.zip.output_path
   source_code_hash = data.archive_file.zip.output_base64sha256
@@ -42,7 +42,7 @@ resource "aws_lambda_permission" "apigw_lambda" {
 }
 
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
-  name              = "/aws/lambda/${var.lambda_name}"
+  name              = "/aws/lambda/${aws_lambda_function.lambda.name}"
   retention_in_days = 14
 
   tags = {
