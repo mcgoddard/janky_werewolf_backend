@@ -8,6 +8,11 @@ resource "aws_apigatewayv2_api" "api" {
   }
 }
 
+resource "aws_apigatewayv2_route" "default_route" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "$default"
+}
+
 resource "aws_apigatewayv2_integration" "default_route_integration" {
   api_id           = aws_apigatewayv2_api.api.id
   integration_type = "AWS"
