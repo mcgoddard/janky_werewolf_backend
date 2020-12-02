@@ -61,7 +61,6 @@ jobs:
     name: Deploy terraform
     runs-on: ubuntu-latest
     needs: [build_api, build_broadcast]
-    if: github.ref == 'refs/heads/master'
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
@@ -90,7 +89,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       - name: Apply terraform
         working-directory: ./terraform/main
-        run: terraform apply -auto-approve
+        run: terraform apply -auto-approve -var="environment=${GITHUB_REF##*/}"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

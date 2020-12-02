@@ -8,6 +8,8 @@ module "api_lambda" {
   aws_account_id     = var.aws_account_id
   api_gateway_domain = var.api_gateway_domain
   api_gateway_stage  = var.api_gateway_stage
+  environment        = var.environment
+  table_name         = aws_dynamodb_table.janky-werewolf-table.name
 }
 
 module "broadcast_lambda" {
@@ -20,4 +22,6 @@ module "broadcast_lambda" {
   aws_account_id     = var.aws_account_id
   api_gateway_domain = var.api_gateway_domain
   api_gateway_stage  = var.api_gateway_stage
+  environment        = var.environment
+  table_name         = aws_dynamodb_table.janky-werewolf-table.name
 }

@@ -27,3 +27,8 @@ variable "api_gateway_stage" {
   description = "The stage for API gateway."
   default     = "dev"
 }
+
+variable "environment" {
+  description = "The environment to build for."
+  type        = string
+}
