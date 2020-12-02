@@ -11,6 +11,7 @@ resource "aws_apigatewayv2_api" "api" {
 resource "aws_apigatewayv2_route" "default_route" {
   api_id    = aws_apigatewayv2_api.api.id
   route_key = "$default"
+  target    = "integrations/${aws_apigatewayv2_integration.default_route_integration.id}"
 }
 
 resource "aws_apigatewayv2_integration" "default_route_integration" {
