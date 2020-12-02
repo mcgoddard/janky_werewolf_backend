@@ -41,4 +41,8 @@ resource "aws_apigatewayv2_deployment" "deployment" {
   lifecycle {
     create_before_destroy = true
   }
+
+  depends_on = [
+    aws_apigatewayv2_route.default_route,
+  ]
 }
