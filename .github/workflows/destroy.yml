@@ -1,0 +1,24 @@
+name: Build
+
+on: delete
+
+jobs:
+  destroy:
+    name: Destroy terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+      - uses: hashicorp/setup-terraform@v1
+      - name: Init terraform
+        working-directory: ./terraform/main
+        run: terraform init -backend-config "key=janky-werewolf/terraform/${GITHUB_REF##*/}/key"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - name: Apply terraform
+        working-directory: ./terraform/main
+        run: terraform destroy -auto-approve
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
