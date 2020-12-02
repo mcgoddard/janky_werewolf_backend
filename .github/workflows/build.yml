@@ -83,7 +83,7 @@ jobs:
         run: chmod +x bootstrap
       - name: Init terraform
         working-directory: ./terraform/main
-        run: terraform init
+        run: terraform init -backend-config "key=janky-werewolf/terraform/${GITHUB_REF##*/}/key"
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}

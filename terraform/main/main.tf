@@ -10,7 +10,6 @@ provider "archive" {
 terraform {
   backend "s3" {
     bucket         = "janky-werewolf-backend-terraform-state"
-    key            = "janky-werewolf/terraform/${var.environment}/key"
     region         = "eu-west-2"
     encrypt        = true
     dynamodb_table = "terraform-state-lock-dynamo"

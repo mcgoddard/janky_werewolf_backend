@@ -39,10 +39,6 @@ resource "aws_lambda_permission" "apigw_lambda" {
 
   # More: http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html
   source_arn = "arn:aws:execute-api:${var.aws_region}:${var.aws_account_id}:*"
-
-  tags = {
-    Environment = var.environment
-  }
 }
 
 resource "aws_cloudwatch_log_group" "lambda_log_group" {
