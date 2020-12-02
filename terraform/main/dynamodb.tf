@@ -29,8 +29,4 @@ resource "aws_lambda_event_source_mapping" "broadcast-state-mapping" {
   starting_position      = "LATEST"
   batch_size             = 1
   maximum_retry_attempts = 2
-
-  tags = {
-    Environment = var.environment
-  }
 }
