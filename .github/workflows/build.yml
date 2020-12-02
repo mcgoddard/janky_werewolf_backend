@@ -71,11 +71,17 @@ jobs:
         with:
           name: api-binary
           path: api_lambda/release
+      - name: Make API binary executable
+        working-directory: ./api_lambda/release
+        run: chmod +x bootstrap
       - name: Load broadcast build
         uses: actions/download-artifact@v2
         with:
           name: broadcast-binary
           path: broadcast_lambda/release
+      - name: Make broadcast binary executable
+        working-directory: ./broadcast_lambda/release
+        run: chmod +x bootstrap
       - name: Init terraform
         working-directory: ./terraform/main
         run: terraform init
