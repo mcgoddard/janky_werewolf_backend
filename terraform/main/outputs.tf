@@ -9,3 +9,7 @@ output "broadcast_arn" {
 output "stream_arn" {
   value = aws_dynamodb_table.janky-werewolf-table.stream_arn
 }
+
+output "api_gw_ws_url" {
+  value = aws_apigatewayv2_stage.stage.invoke_url
+}
