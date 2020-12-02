@@ -21,6 +21,10 @@ resource "aws_lambda_function" "lambda" {
       stage      = var.api_gateway_stage
     }
   }
+
+  depends_on = [
+    aws_cloudwatch_log_group.lambda_log_group,
+  ]
 }
 
 resource "aws_lambda_permission" "apigw_lambda" {
@@ -31,4 +35,9 @@ resource "aws_lambda_permission" "apigw_lambda" {
 
   # More: http://docs.aws.amazon.com/apigateway/latest/developerguide/api-gateway-control-access-using-iam-policies-to-invoke-api.html
   source_arn = "arn:aws:execute-api:${var.aws_region}:${var.aws_account_id}:*"
+}
+
+resource "aws_cloudwatch_log_group" "lambda_log_group" {
+  name              = "/aws/lambda/${var.lambda_name}"
+  retention_in_days = 14
 }
