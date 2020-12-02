@@ -1,7 +1,7 @@
 
 
 resource "aws_dynamodb_table" "janky-werewolf-table" {
-  name           = "janky-werewolf-table"
+  name           = "${var.environment}-janky-werewolf-table"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "lobby_id"
 
@@ -17,6 +17,10 @@ resource "aws_dynamodb_table" "janky-werewolf-table" {
 
   stream_enabled   = true
   stream_view_type = "NEW_IMAGE"
+
+  tags = {
+    Environment = var.environment
+  }
 }
 
 resource "aws_lambda_event_source_mapping" "broadcast-state-mapping" {
@@ -25,4 +29,8 @@ resource "aws_lambda_event_source_mapping" "broadcast-state-mapping" {
   starting_position      = "LATEST"
   batch_size             = 1
   maximum_retry_attempts = 2
+
+  tags = {
+    Environment = var.environment
+  }
 }

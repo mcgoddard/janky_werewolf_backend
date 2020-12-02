@@ -32,3 +32,13 @@ variable "api_gateway_stage" {
   description = "The stage for API gateway."
   type        = string
 }
+
+variable "environment" {
+  description = "The environment to build the lambda for."
+  type        = string
+}
+
+variable "table_name" {
+  description = "The name of the dynamodb table to use in the lambda."
+  type        = string
+}
