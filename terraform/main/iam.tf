@@ -42,7 +42,7 @@ resource "aws_iam_policy" "dynamodb_stream_policy" {
                 "dynamodb:GetShardIterator",
                 "dynamodb:ListStreams"
             ],
-            "Resource": "arn:aws:dynamodb:eu-west-2:676626137701:table/janky-werewolf-table/stream/*"
+            "Resource": "${aws_dynamodb_table.janky-werewolf-table.arn}/stream/*"
         },
         {
             "Effect": "Allow",
