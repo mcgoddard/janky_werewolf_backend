@@ -28,6 +28,7 @@ resource "aws_apigatewayv2_integration" "default_route_integration" {
 resource "aws_apigatewayv2_stage" "stage" {
   api_id = aws_apigatewayv2_api.api.id
   name   = "dev"
+  deployment_id = aws_apigatewayv2_deployment.deployment.id
 
   tags = {
     Environment = var.environment
