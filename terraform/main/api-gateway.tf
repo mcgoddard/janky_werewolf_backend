@@ -42,7 +42,14 @@ resource "aws_apigatewayv2_deployment" "deployment" {
     create_before_destroy = true
   }
 
+  triggers = {
+    redeployment = sha1(join(",", list(
+      md5(file("api-gateway.tf"))
+    )))
+  }
+
   depends_on = [
     aws_apigatewayv2_route.default_route,
+    aws_apigatewayv2_integration.default_route_integration,
   ]
 }

@@ -1,6 +1,6 @@
 SHELL = /bin/sh
 
-install: export TER_VER = 0.13.5
+install: export TER_VER = 0.14.0
 install:
 	sudo apt install -y wget unzip
 	wget https://releases.hashicorp.com/terraform/${TER_VER}/terraform_${TER_VER}_linux_amd64.zip
