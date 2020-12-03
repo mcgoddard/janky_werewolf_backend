@@ -133,7 +133,6 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
 }
 
 fn endpoint() -> String {
-    let domain_name = env::var("domainName").unwrap();
-    let stage = env::var("stage").unwrap();
-    format!("https://{}/{}", domain_name, stage)
+    let domain_name = env::var("apiUrl").unwrap();
+    domain_name.replace("wss://", "https://")
 }
