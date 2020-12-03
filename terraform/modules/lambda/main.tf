@@ -16,9 +16,8 @@ resource "aws_lambda_function" "lambda" {
 
   environment {
     variables = {
-      tableName  = var.table_name
-      domainName = var.api_gateway_domain
-      stage      = var.api_gateway_stage
+      tableName = var.table_name
+      apiUrl    = var.api_gateway_url
     }
   }
 

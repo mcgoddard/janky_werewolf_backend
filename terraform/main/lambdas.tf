@@ -6,8 +6,6 @@ module "api_lambda" {
   bin_dir            = var.bin_dir
   aws_region         = var.aws_region
   aws_account_id     = var.aws_account_id
-  api_gateway_domain = var.api_gateway_domain
-  api_gateway_stage  = var.api_gateway_stage
   environment        = var.environment
   table_name         = aws_dynamodb_table.janky-werewolf-table.name
 }
@@ -20,8 +18,7 @@ module "broadcast_lambda" {
   bin_dir            = var.bin_dir
   aws_region         = var.aws_region
   aws_account_id     = var.aws_account_id
-  api_gateway_domain = var.api_gateway_domain
-  api_gateway_stage  = var.api_gateway_stage
+  api_gateway_url    = aws_apigatewayv2_stage.stage.invoke_url
   environment        = var.environment
   table_name         = aws_dynamodb_table.janky-werewolf-table.name
 }

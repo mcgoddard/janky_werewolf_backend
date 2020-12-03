@@ -23,14 +23,10 @@ variable "iam_role_arn" {
   type        = string
 }
 
-variable "api_gateway_domain" {
-  description = "The domain for API gateway that was manually created."
+variable "api_gateway_url" {
+  description = "The URL for API gateway."
   type        = string
-}
-
-variable "api_gateway_stage" {
-  description = "The stage for API gateway."
-  type        = string
+  default     = ""
 }
 
 variable "environment" {
