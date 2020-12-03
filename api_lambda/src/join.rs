@@ -37,17 +37,20 @@ pub fn handle_join(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context
     
     if p.data.name == "" {
         error!("Empty name in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty first name"));
+        helpers::send_error("Empty first name".to_string(),
+            e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
     }
     else if p.data.secret == "" {
         error!("Empty secret in request {}", c.aws_request_id);
-        return Err(c.new_error("Empty secret"));
+        helpers::send_error("Empty secret".to_string(),
+            e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
     }
-
-    match p.data.code {
-        None => new_game(e, p.data.name, p.data.secret),
-        Some(c) => join_game(e, p.data.name, p.data.secret, c),
-    };
+    else {
+        match p.data.code {
+            None => new_game(e, p.data.name, p.data.secret),
+            Some(c) => join_game(e, p.data.name, p.data.secret, c),
+        };
+    }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
