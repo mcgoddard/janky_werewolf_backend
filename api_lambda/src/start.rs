@@ -13,7 +13,7 @@ use dynomite::{
 use futures::Future;
 use rand::Rng;
 
-use common::{types, helpers};
+use crate::helpers::{send_error, endpoint, update_state, DDB, RT, RequestResult, RequestError};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct StartEvent {
@@ -31,7 +31,7 @@ struct EventData {
     code: String,
 }
 
-pub fn handle_start(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: StartEvent = serde_json::from_str(&body).unwrap();
@@ -44,31 +44,31 @@ pub fn handle_start(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGate
         ..Default::default()
     });
 
-    let result = helpers::DDB.with(|ddb| {
+    let result = DDB.with(|ddb| {
         ddb.get_item(GetItemInput {
             table_name: table_name.clone(),
             key: ddb_keys,
             ..GetItemInput::default()
         })
-        .map(types::RequestResult::Get)
-        .map_err(types::RequestError::Get)
+        .map(RequestResult::Get)
+        .map_err(RequestError::Get)
     });
 
-    match helpers::RT.with(|rt| rt.borrow_mut().block_on(result)) {
+    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
-            helpers::send_error(format!("Lobby not found: {:?}", err),
-                e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
+            send_error(format!("Lobby not found: {:?}", err),
+                e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
         },
         Ok(result) => {
             match result {
-                types::RequestResult::Get(result) => {
+                RequestResult::Get(result) => {
                     let result: GetItemOutput = result;
                     match result.item {
                         None => {
                             error!("Lobby not found: {:?}", event.data.code);
-                            helpers::send_error("Unable to find lobby".to_string(),
-                                e.request_context.connection_id.clone().unwrap(), helpers::endpoint(&e.request_context));
+                            send_error("Unable to find lobby".to_string(),
+                                e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
                         },
                         Some(item) => {
                             let data = event.data;
@@ -90,11 +90,11 @@ pub fn handle_start(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGate
     })
 }
 
-fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool,
+fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool,
         lycan: bool, tanner: bool) {
     let table_name = env::var("tableName").unwrap();
 
-    let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
+    let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
     let mut roles_count = werewolves + 1;
     if bodyguard { roles_count += 1 }
@@ -103,59 +103,59 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     if tanner { roles_count += 1 }
     if roles_count > game_state.players.len() as u32 {
         error!("Roles: {}, Players: {}", roles_count, game_state.players.len());
-        helpers::send_error("More roles than players!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        send_error("More roles than players!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         return;
     }
     
-    let mut roles: Vec<types::PlayerAttributes> = vec![];
+    let mut roles: Vec<common::PlayerAttributes> = vec![];
     let num_villagers = game_state.players.len() as u32 - roles_count;
     if seer {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Seer,
-            team: types::PlayerTeam::Good,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Seer,
+            team: common::PlayerTeam::Good,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod)],
         });
     }
     if bodyguard {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Bodyguard,
-            team: types::PlayerTeam::Good,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Bodyguard,
+            team: common::PlayerTeam::Good,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod)],
         });
     }
     if lycan {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Lycan,
-            team: types::PlayerTeam::Good,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Lycan,
+            team: common::PlayerTeam::Good,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod)],
         });
     }
     if tanner {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Tanner,
-            team: types::PlayerTeam::Good,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Tanner,
+            team: common::PlayerTeam::Good,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod)],
         });
     }
     for _ in 0..werewolves {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Werewolf,
-            team: types::PlayerTeam::Evil,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Werewolf,
+            team: common::PlayerTeam::Evil,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod), format!("{:?}", types::PlayerRole::Werewolf)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod), format!("{:?}", common::PlayerRole::Werewolf)],
         });
     }
     for _ in 0..num_villagers {
-        roles.push(types::PlayerAttributes {
-            role: types::PlayerRole::Villager,
-            team: types::PlayerTeam::Good,
+        roles.push(common::PlayerAttributes {
+            role: common::PlayerRole::Villager,
+            team: common::PlayerTeam::Good,
             alive: true,
-            visible_to: vec![format!("{:?}", types::PlayerRole::Mod)],
+            visible_to: vec![format!("{:?}", common::PlayerRole::Mod)],
         });
     }
 
@@ -165,9 +165,9 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     for player in &game_state.players {
         let mut new_player = player.clone();
         if player.id == event.request_context.connection_id.clone().unwrap() {
-            new_player.attributes = types::PlayerAttributes {
-                role: types::PlayerRole::Mod,
-                team: types::PlayerTeam::Unknown,
+            new_player.attributes = common::PlayerAttributes {
+                role: common::PlayerRole::Mod,
+                team: common::PlayerTeam::Unknown,
                 alive: true,
                 visible_to: vec!["All".to_string()],
             };
@@ -180,10 +180,10 @@ fn move_to_day(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<Stri
     }
 
     game_state.players = new_players;
-    game_state.phase = types::Phase {
-        name: types::PhaseName::Day,
+    game_state.phase = common::Phase {
+        name: common::PhaseName::Day,
         data: HashMap::new(),
     };
 
-    helpers::update_state(item, game_state, table_name, event);
+    update_state(item, game_state, table_name, event);
 }

@@ -11,7 +11,7 @@ use dynomite::{
     },
 };
 
-use common::{types, helpers};
+use crate::helpers::{get_state, send_error, endpoint, update_state, check_game_over, living_players_with_role};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct LynchEvent {
@@ -25,14 +25,14 @@ struct EventData {
     player: String,
 }
 
-pub fn handle_lynch(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_lynch(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: LynchEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = helpers::get_state(table_name, e.clone(), event.data.code);
+    let current_game = get_state(table_name, e.clone(), event.data.code);
     if let Some(item) = current_game { move_to_sleep(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
@@ -44,34 +44,34 @@ pub fn handle_lynch(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGate
     })
 }
 
-fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, lynched_player: String) {
+fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, lynched_player: String) {
     let table_name = env::var("tableName").unwrap();
 
-    let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
+    let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
-    let players: Vec<types::Player> = game_state.players.clone().into_iter().filter(|p| p.id == event.request_context.connection_id.clone().unwrap()).collect();
+    let players: Vec<common::Player> = game_state.players.clone().into_iter().filter(|p| p.id == event.request_context.connection_id.clone().unwrap()).collect();
     if players.len() != 1 {
-        helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
-    else if game_state.phase.name != types::PhaseName::Day {
-        helpers::send_error("Not a valid transition!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    else if game_state.phase.name != common::PhaseName::Day {
+        send_error("Not a valid transition!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
-    else if players[0].attributes.role != types::PlayerRole::Mod {
-        helpers::send_error("You are not the moderator!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    else if players[0].attributes.role != common::PlayerRole::Mod {
+        send_error("You are not the moderator!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
     else {
-        let killing_player: Vec<types::Player> = game_state.players.clone().into_iter()
+        let killing_player: Vec<common::Player> = game_state.players.clone().into_iter()
             .filter(|p| p.name == lynched_player).collect();
         if killing_player.len() != 1 {
-            helpers::send_error("Invalid player to lynch!".to_string(),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+            send_error("Invalid player to lynch!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         }
         else if !players[0].attributes.alive {
-            helpers::send_error("Player is already dead!".to_string(),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+            send_error("Player is already dead!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         }
         else {
             let mut new_players = game_state.players.clone();
@@ -82,7 +82,7 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
             new_killing_player.attributes = killing_player[0].attributes.clone();
             new_killing_player.attributes = new_attributes;
             new_players.push(new_killing_player);
-            match helpers::check_game_over(new_players.clone()) {
+            match check_game_over(new_players.clone()) {
                 Some(winners) => {
                     let mut new_phase_data = HashMap::new();
                     game_state.players = new_players;
@@ -91,38 +91,38 @@ fn move_to_sleep(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<St
                         _ => new_phase_data.insert("winner".to_string(), winners.into_iter().map(|w| format!("{:?}", w)).collect::<Vec<String>>().join(", ")),
                     };
                     
-                    game_state.phase = types::Phase {
-                        name: types::PhaseName::End,
+                    game_state.phase = common::Phase {
+                        name: common::PhaseName::End,
                         data: new_phase_data,
                     };
                 },
                 None => {
                     game_state.players = new_players;
-                    game_state.phase = types::Phase {
-                        name: types::PhaseName::Seer,
+                    game_state.phase = common::Phase {
+                        name: common::PhaseName::Seer,
                         data: HashMap::new(),
                     };
-                    if helpers::living_players_with_role(types::PlayerRole::Seer, game_state.players.clone()) > 0 {
-                        game_state.phase = types::Phase {
-                            name: types::PhaseName::Seer,
+                    if living_players_with_role(common::PlayerRole::Seer, game_state.players.clone()) > 0 {
+                        game_state.phase = common::Phase {
+                            name: common::PhaseName::Seer,
                             data: HashMap::new(),
                         };
                     }
-                    else if helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
-                        game_state.phase = types::Phase {
-                            name: types::PhaseName::Bodyguard,
+                    else if living_players_with_role(common::PlayerRole::Bodyguard, game_state.players.clone()) > 0 {
+                        game_state.phase = common::Phase {
+                            name: common::PhaseName::Bodyguard,
                             data: HashMap::new(),
                         };
                     }
                     else {
-                        game_state.phase = types::Phase {
-                            name: types::PhaseName::Werewolf,
+                        game_state.phase = common::Phase {
+                            name: common::PhaseName::Werewolf,
                             data: HashMap::new(),
                         };
                     }
                 },
             }
-            helpers::update_state(item, game_state, table_name, event);
+            update_state(item, game_state, table_name, event);
         }
     }
 }

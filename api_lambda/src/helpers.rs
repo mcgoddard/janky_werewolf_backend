@@ -5,16 +5,15 @@ use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
 };
 use rusoto_core::Region;
+use rusoto_core::RusotoError;
 use serde_json::json;
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput, GetItemOutput,
+        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput, GetItemOutput, PutItemError, GetItemError
     },
 };
 use tokio::runtime::Runtime;
 use futures::Future;
-
-use super::types;
 
 thread_local!(
     pub static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
@@ -24,6 +23,17 @@ thread_local!(
     pub static RT: RefCell<Runtime> =
         RefCell::new(Runtime::new().expect("failed to initialize runtime"));
 );
+
+#[derive(Debug)]
+pub enum RequestResult {
+    Get(GetItemOutput),
+}
+
+#[derive(Debug)]
+pub enum RequestError {
+    Connect(RusotoError<PutItemError>),
+    Get(RusotoError<GetItemError>),
+}
 
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
@@ -37,7 +47,7 @@ pub fn send_error(message: String, connection_id: String, endpoint: String) {
     if let Err(e) = result { error!("Error sending error: {:?}", e) }
 }
 
-pub fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
+pub fn endpoint(ctx: &common::ApiGatewayWebsocketProxyRequestContext) -> String {
     match &ctx.domain_name {
         Some(domain) => (
             match &ctx.stage {
@@ -51,8 +61,8 @@ pub fn endpoint(ctx: &types::ApiGatewayWebsocketProxyRequestContext) -> String {
     }
 }
 
-pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash_map::RandomState>, game_state: types::GameState,
-                    table_name: String, event: types::ApiGatewayWebsocketProxyRequest) {
+pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash_map::RandomState>, game_state: common::GameState,
+                    table_name: String, event: common::ApiGatewayWebsocketProxyRequest) {
     let mut new_item = item;
     new_item.insert("version".to_string(), AttributeValue {
         n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
@@ -78,7 +88,7 @@ pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash
             ..PutItemInput::default()
         })
         .map(drop)
-        .map_err(types::RequestError::Connect)
+        .map_err(RequestError::Connect)
     });
 
     if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
@@ -88,7 +98,7 @@ pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash
     };
 }
 
-pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyRequest, 
+pub fn get_state(table_name: String, event: common::ApiGatewayWebsocketProxyRequest, 
              lobby_id: String) -> Option<HashMap<String, AttributeValue>> {
     let mut ddb_keys = HashMap::new();
     ddb_keys.insert("lobby_id".to_string(), AttributeValue {
@@ -102,8 +112,8 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
             key: ddb_keys,
             ..GetItemInput::default()
         })
-        .map(types::RequestResult::Get)
-        .map_err(types::RequestError::Get)
+        .map(RequestResult::Get)
+        .map_err(RequestError::Get)
     });
 
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
@@ -114,7 +124,7 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
         },
         Ok(result) => {
             match result {
-                types::RequestResult::Get(result) => {
+                RequestResult::Get(result) => {
                     let result: GetItemOutput = result;
                     match result.item {
                         None => {
@@ -133,22 +143,22 @@ pub fn get_state(table_name: String, event: types::ApiGatewayWebsocketProxyReque
     None
 }
 
-pub fn check_game_over(players: Vec<types::Player>) -> Option<Vec<types::PlayerTeam>> {
-    let good_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Good && p.attributes.alive).collect();
-    let evil_players: Vec<types::Player> = players.clone().into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).collect();
+pub fn check_game_over(players: Vec<common::Player>) -> Option<Vec<common::PlayerTeam>> {
+    let good_players: Vec<common::Player> = players.clone().into_iter().filter(|p| p.attributes.team == common::PlayerTeam::Good && p.attributes.alive).collect();
+    let evil_players: Vec<common::Player> = players.clone().into_iter().filter(|p| p.attributes.team == common::PlayerTeam::Evil && p.attributes.alive).collect();
     let mut winners = None;
     if evil_players.len() >= good_players.len() || evil_players.is_empty() {
         let mut teams = vec![];
-        if players.clone().into_iter().filter(|p| p.attributes.role == types::PlayerRole::Tanner).count() > 0 && 
-            living_players_with_role(types::PlayerRole::Tanner, players.clone()) < 1 {
-            teams.push(types::PlayerTeam::Tanner);
+        if players.clone().into_iter().filter(|p| p.attributes.role == common::PlayerRole::Tanner).count() > 0 && 
+            living_players_with_role(common::PlayerRole::Tanner, players.clone()) < 1 {
+            teams.push(common::PlayerTeam::Tanner);
         }
-        match players.into_iter().filter(|p| p.attributes.team == types::PlayerTeam::Evil && p.attributes.alive).count() {
+        match players.into_iter().filter(|p| p.attributes.team == common::PlayerTeam::Evil && p.attributes.alive).count() {
             0 => {
-                teams.push(types::PlayerTeam::Good);
+                teams.push(common::PlayerTeam::Good);
             },
             _ => {
-                teams.push(types::PlayerTeam::Evil);
+                teams.push(common::PlayerTeam::Evil);
             }
         };
         winners = Some(teams);
@@ -156,6 +166,6 @@ pub fn check_game_over(players: Vec<types::Player>) -> Option<Vec<types::PlayerT
     winners
 }
 
-pub fn living_players_with_role(role: types::PlayerRole, players: Vec<types::Player>) -> u32 {
+pub fn living_players_with_role(role: common::PlayerRole, players: Vec<common::Player>) -> u32 {
     players.into_iter().filter(|p| p.attributes.role == role && p.attributes.alive).count() as u32
 }
