@@ -11,7 +11,7 @@ use dynomite::{
     },
 };
 
-use common::{types, helpers};
+use crate::helpers::{get_state, send_error, endpoint, update_state, living_players_with_role, check_game_over};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct WerewolfEvent {
@@ -25,14 +25,14 @@ struct EventData {
     player: String,
 }
 
-pub fn handle_werewolf(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_werewolf(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: WerewolfEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = helpers::get_state(table_name, e.clone(), event.data.code.clone());
+    let current_game = get_state(table_name, e.clone(), event.data.code.clone());
     if let Some(item) = current_game { werewolf(e, item, event.data.player) }
 
     Ok(ApiGatewayProxyResponse {
@@ -44,35 +44,35 @@ pub fn handle_werewolf(e: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiG
     })
 }
 
-fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, eat_player_name: String) {
+fn werewolf(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, eat_player_name: String) {
     let table_name = env::var("tableName").unwrap();
 
-    let mut game_state: types::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
+    let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
-    let players: Vec<types::Player> = game_state.players.clone().into_iter().filter(|p| p.id == event.request_context.connection_id.clone().unwrap()).collect();
+    let players: Vec<common::Player> = game_state.players.clone().into_iter().filter(|p| p.id == event.request_context.connection_id.clone().unwrap()).collect();
     if players.len() != 1 {
-        helpers::send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        send_error(format!("Could not find player with connection ID: {:?}", event.request_context.connection_id.clone().unwrap()),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
-    else if game_state.phase.name != types::PhaseName::Werewolf {
-        helpers::send_error("Not a valid transition!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    else if game_state.phase.name != common::PhaseName::Werewolf {
+        send_error("Not a valid transition!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
-    else if players[0].attributes.role != types::PlayerRole::Werewolf {
-        helpers::send_error("You are not a werewolf!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+    else if players[0].attributes.role != common::PlayerRole::Werewolf {
+        send_error("You are not a werewolf!".to_string(),
+            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
     }
     else {
-        let eat_player: Vec<types::Player> = game_state.players.clone().into_iter()
+        let eat_player: Vec<common::Player> = game_state.players.clone().into_iter()
             .filter(|p| p.name == eat_player_name).collect();
-        if eat_player.len() != 1 || !eat_player[0].attributes.alive || eat_player[0].attributes.team != types::PlayerTeam::Good {
-            helpers::send_error("Invalid player to eat!".to_string(),
-                event.request_context.connection_id.clone().unwrap(), helpers::endpoint(&event.request_context));
+        if eat_player.len() != 1 || !eat_player[0].attributes.alive || eat_player[0].attributes.team != common::PlayerTeam::Good {
+            send_error("Invalid player to eat!".to_string(),
+                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
         }
         else {
             let num_werewolves = game_state.players.clone().into_iter()
                 .filter(|p| {
-                    p.attributes.role == types::PlayerRole::Werewolf &&
+                    p.attributes.role == common::PlayerRole::Werewolf &&
                     p.attributes.alive
                 }).count();
             let mut new_phase = game_state.phase.clone();
@@ -86,9 +86,9 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                 if num_other_votes < 1 {
                     let last_protected_player = game_state.internal_state.get("last_guarded").unwrap_or(&"".to_string()).clone();
                     if last_protected_player == eat_player_name &&
-                        helpers::living_players_with_role(types::PlayerRole::Bodyguard, game_state.players) > 0 {
-                            new_phase = types::Phase {
-                                name: types::PhaseName::Day,
+                        living_players_with_role(common::PlayerRole::Bodyguard, game_state.players) > 0 {
+                            new_phase = common::Phase {
+                                name: common::PhaseName::Day,
                                 data: HashMap::new(),
                             };
                     }
@@ -99,7 +99,7 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                         new_attributes.alive = false;
                         new_eaten_player.attributes = new_attributes;
                         new_players.push(new_eaten_player);
-                        match helpers::check_game_over(new_players.clone()) {
+                        match check_game_over(new_players.clone()) {
                             Some(winners) => {
                                 let mut new_phase_data = HashMap::new();
                                 match winners.len() {
@@ -107,14 +107,14 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
                                     _ => new_phase_data.insert("winner".to_string(), winners.into_iter().map(|w| format!("{:?}", w)).collect::<Vec<String>>().join(", "))
                                 };
                                 
-                                new_phase = types::Phase {
-                                    name: types::PhaseName::End,
+                                new_phase = common::Phase {
+                                    name: common::PhaseName::End,
                                     data: new_phase_data,
                                 };
                             },
                             None => {
-                                new_phase = types::Phase {
-                                    name: types::PhaseName::Day,
+                                new_phase = common::Phase {
+                                    name: common::PhaseName::Day,
                                     data: HashMap::new(),
                                 };
                             },
@@ -125,7 +125,7 @@ fn werewolf(event: types::ApiGatewayWebsocketProxyRequest, item: HashMap<String,
 
             game_state.phase = new_phase;
             game_state.players = new_players;
-            helpers::update_state(item, game_state, table_name, event);
+            update_state(item, game_state, table_name, event);
         }
     }
 }

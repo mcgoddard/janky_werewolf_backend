@@ -221,18 +221,9 @@ name = "common"
 version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
- "dynomite",
- "env_logger",
- "futures",
- "log",
- "openssl",
- "rusoto_apigatewaymanagementapi",
- "rusoto_core",
  "serde",
  "serde_derive",
  "serde_json",
- "simple_logger",
- "tokio",
 ]
 
 [[package]]

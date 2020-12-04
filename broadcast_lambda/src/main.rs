@@ -17,8 +17,6 @@ use rusoto_apigatewaymanagementapi::{
 use rusoto_core::Region;
 use serde_json::json;
 
-use common::types;
-
 fn main() -> Result<(), Box<dyn Error>> {
     simple_logger::init_with_level(log::Level::Info)?;
     lambda!(my_handler);
@@ -26,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn my_handler(e: types::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+fn my_handler(e: common::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     match e.records {
         Some(records) => {
             for record in &records {
@@ -45,7 +43,7 @@ fn my_handler(e: types::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewa
     })
 }
 
-fn process_record(record: &types::DDBRecord) {
+fn process_record(record: &common::DDBRecord) {
     match &record.dynamodb {
         Some(stream_record) => {
             match &stream_record.stream_view_type {
@@ -54,7 +52,7 @@ fn process_record(record: &types::DDBRecord) {
                         "NEW_IMAGE" => {
                             match &stream_record.new_image {
                                 Some(new_image) => {
-                                    let new_image: types::GameState = serde_json::from_str(&new_image.data["S"]).unwrap();
+                                    let new_image: common::GameState = serde_json::from_str(&new_image.data["S"]).unwrap();
                                     let players = new_image.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
                                         let new_image = new_image.clone();
@@ -82,7 +80,7 @@ fn process_record(record: &types::DDBRecord) {
     }
 }
 
-fn broadcast(player: &types::Player, game_state: types::GameState) {
+fn broadcast(player: &common::Player, game_state: common::GameState) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
         name: Region::EuWest2.name().into(),
         endpoint: endpoint(),
@@ -94,13 +92,13 @@ fn broadcast(player: &types::Player, game_state: types::GameState) {
     if let Err(e) = result { log::error!("Unable to send state: {:?}", e) }
 }
 
-fn filter_state(player: &types::Player, game_state: types::GameState) -> types::GameState {
+fn filter_state(player: &common::Player, game_state: common::GameState) -> common::GameState {
     let mut new_state = game_state.clone();
-    if game_state.phase.name == types::PhaseName::Werewolf && 
-        !vec![types::PlayerRole::Mod, types::PlayerRole::Werewolf].contains(&player.attributes.role) {
+    if game_state.phase.name == common::PhaseName::Werewolf && 
+        !vec![common::PlayerRole::Mod, common::PlayerRole::Werewolf].contains(&player.attributes.role) {
             new_state.phase.data = HashMap::new();
     }
-    if game_state.phase.name == types::PhaseName::Bodyguard && player.attributes.role == types::PlayerRole::Bodyguard {
+    if game_state.phase.name == common::PhaseName::Bodyguard && player.attributes.role == common::PlayerRole::Bodyguard {
         let mut phase_data = HashMap::new();
         phase_data.insert("last_guarded".to_string(), game_state.internal_state.get("last_guarded").unwrap_or(&"".to_string()).clone());
         new_state.phase.data = phase_data;
@@ -111,16 +109,16 @@ fn filter_state(player: &types::Player, game_state: types::GameState) -> types::
         let mut new_player = p.clone();
         new_player.secret = "".to_string();
         new_player.id = "".to_string();
-        if game_state.phase.name != types::PhaseName::End {
-            if p.name != player.name && new_attributes.alive && new_attributes.role != types::PlayerRole::Mod {
+        if game_state.phase.name != common::PhaseName::End {
+            if p.name != player.name && new_attributes.alive && new_attributes.role != common::PlayerRole::Mod {
                 if !new_attributes.visible_to.contains(&format!("{:?}", player.attributes.role)) {
-                    new_attributes.role = types::PlayerRole::Unknown;
-                    new_attributes.team = types::PlayerTeam::Unknown;
+                    new_attributes.role = common::PlayerRole::Unknown;
+                    new_attributes.team = common::PlayerTeam::Unknown;
                 }
-                else if player.attributes.role == types::PlayerRole::Seer {
-                    new_attributes.role = types::PlayerRole::Unknown;
-                    if p.attributes.role == types::PlayerRole::Lycan {
-                        new_attributes.team = types::PlayerTeam::Evil;
+                else if player.attributes.role == common::PlayerRole::Seer {
+                    new_attributes.role = common::PlayerRole::Unknown;
+                    if p.attributes.role == common::PlayerRole::Lycan {
+                        new_attributes.team = common::PlayerTeam::Evil;
                     }
                 }
             }

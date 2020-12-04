@@ -19,8 +19,6 @@ use serde_json::{Value, Map};
 use simple_logger::SimpleLogger;
 use log::LevelFilter;
 
-use common::{types, helpers};
-
 mod bodyguard;
 use bodyguard::handle_bodyguard;
 
@@ -42,6 +40,8 @@ use start::handle_start;
 mod werewolf;
 use werewolf::handle_werewolf;
 
+mod helpers;
+
 
 #[derive(Deserialize, Serialize, Clone)]
 struct RouteEvent {
@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+fn my_handler(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
@@ -74,7 +74,7 @@ fn my_handler(e: types::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> 
     }
 }
 
-fn handle_unknown(action: String, event: types::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
+fn handle_unknown(action: String, event: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
     helpers::send_error(format!("Unknown action \"{}\"!", action),
         event.request_context.connection_id.clone().unwrap(), 
         helpers::endpoint(&event.request_context));
