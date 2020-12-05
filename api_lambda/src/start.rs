@@ -1,9 +1,5 @@
-use lambda::error::HandlerError;
-
 use std::env;
 use std::collections::HashMap;
-
-use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use dynomite::{
     dynamodb::{
@@ -13,7 +9,8 @@ use dynomite::{
 use futures::Future;
 use rand::Rng;
 
-use crate::helpers::{send_error, endpoint, update_state, DDB, RT, RequestResult, RequestError};
+use crate::ActionError;
+use crate::helpers::{update_state, DDB, RT, RequestResult, RequestError};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct StartEvent {
@@ -31,7 +28,7 @@ struct EventData {
     code: String,
 }
 
-pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: StartEvent = serde_json::from_str(&body).unwrap();
@@ -57,8 +54,7 @@ pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGat
     match RT.with(|rt| rt.borrow_mut().block_on(result)) {
         Err(err) => {
             log::error!("failed to perform new game connection operation: {:?}", err);
-            send_error(format!("Lobby not found: {:?}", err),
-                e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
+            Err(ActionError::new(&format!("Lobby not found: {:?}", err)))
         },
         Ok(result) => {
             match result {
@@ -67,31 +63,22 @@ pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGat
                     match result.item {
                         None => {
                             error!("Lobby not found: {:?}", event.data.code);
-                            send_error("Unable to find lobby".to_string(),
-                                e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
+                            Err(ActionError::new(&"Unable to find lobby".to_string()))
                         },
                         Some(item) => {
                             let data = event.data;
                             move_to_day(e, item, data.werewolves, data.bodyguard.unwrap_or(false), data.seer.unwrap_or(true),
-                                data.lycan.unwrap_or(false), data.tanner.unwrap_or(false));
+                                data.lycan.unwrap_or(false), data.tanner.unwrap_or(false))
                         },
                     }
                 }
             }
         }
     }
-
-    Ok(ApiGatewayProxyResponse {
-        status_code: 200,
-        headers: HashMap::new(),
-        multi_value_headers: HashMap::new(),
-        body: None,
-        is_base64_encoded: None,
-    })
 }
 
 fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool,
-        lycan: bool, tanner: bool) {
+        lycan: bool, tanner: bool) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
     let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
@@ -103,9 +90,7 @@ fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<Str
     if tanner { roles_count += 1 }
     if roles_count > game_state.players.len() as u32 {
         error!("Roles: {}, Players: {}", roles_count, game_state.players.len());
-        send_error("More roles than players!".to_string(),
-            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
-        return;
+        return Err(ActionError::new(&"More roles than players!".to_string()));
     }
     
     let mut roles: Vec<common::PlayerAttributes> = vec![];
@@ -185,5 +170,5 @@ fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<Str
         data: HashMap::new(),
     };
 
-    update_state(item, game_state, table_name, event);
+    update_state(item, game_state, table_name)
 }

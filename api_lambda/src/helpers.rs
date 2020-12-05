@@ -15,6 +15,8 @@ use dynomite::{
 use tokio::runtime::Runtime;
 use futures::Future;
 
+use crate::ActionError;
+
 thread_local!(
     pub static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
 );
@@ -62,7 +64,7 @@ pub fn endpoint(ctx: &common::ApiGatewayWebsocketProxyRequestContext) -> String 
 }
 
 pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash_map::RandomState>, game_state: common::GameState,
-                    table_name: String, event: common::ApiGatewayWebsocketProxyRequest) {
+                    table_name: String) -> Result<(), ActionError> {
     let mut new_item = item;
     new_item.insert("version".to_string(), AttributeValue {
         n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
@@ -93,9 +95,10 @@ pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash
 
     if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
         log::error!("Error saving state: {:?}", err);
-        send_error(format!("Error saving state, please try again: {:?}", err),
-            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+        return Err(ActionError::new(&format!("Error saving state, please try again: {:?}", err)))
     };
+
+    Ok(())
 }
 
 pub fn get_state(table_name: String, event: common::ApiGatewayWebsocketProxyRequest, 
