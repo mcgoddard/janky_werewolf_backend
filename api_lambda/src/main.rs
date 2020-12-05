@@ -9,6 +9,7 @@ extern crate rand;
 
 use lambda::error::HandlerError;
 
+use std::fmt;
 use std::error::Error;
 use std::collections::HashMap;
 
@@ -62,22 +63,22 @@ fn my_handler(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) ->
     info!("{:?}", body);
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
     
-    match &event.action as &str {
-        "bodyguard" => handle_bodyguard(e),
-        "join" => handle_join(e, c),
-        "lynch" => handle_lynch(e),
-        "seer" => handle_seer(e),
-        "sleep" => handle_sleep(e),
-        "start" => handle_start(e),
-        "werewolf" => handle_werewolf(e),
-        _ => handle_unknown(event.action, e),
-    }
-}
+    let error = match &event.action as &str {
+        "bodyguard" => handle_bodyguard(e.clone()),
+        "join" => handle_join(e.clone(), c),
+        "lynch" => handle_lynch(e.clone()),
+        "seer" => handle_seer(e.clone()),
+        "sleep" => handle_sleep(e.clone()),
+        "start" => handle_start(e.clone()),
+        "werewolf" => handle_werewolf(e.clone()),
+        _ => handle_unknown(event.action),
+    };
 
-fn handle_unknown(action: String, event: common::ApiGatewayWebsocketProxyRequest) -> Result<ApiGatewayProxyResponse, HandlerError> {
-    helpers::send_error(format!("Unknown action \"{}\"!", action),
-        event.request_context.connection_id.clone().unwrap(), 
-        helpers::endpoint(&event.request_context));
+    if let Err(action_error) = error {
+        helpers::send_error(format!("Unknown action \"{}\"!", action_error),
+            e.clone().request_context.connection_id.unwrap(),
+            helpers::endpoint(&e.request_context));
+    }
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
@@ -86,4 +87,31 @@ fn handle_unknown(action: String, event: common::ApiGatewayWebsocketProxyRequest
         body: None,
         is_base64_encoded: None,
     })
+}
+
+fn handle_unknown(action: String) -> Result<(), ActionError> {
+    Err(ActionError::new(&format!("Unknown action \"{}\"!", action)))
+}
+
+#[derive(Debug)]
+pub struct ActionError {
+    details: String
+}
+
+impl ActionError {
+    fn new(msg: &str) -> ActionError {
+        ActionError{details: msg.to_string()}
+    }
+}
+
+impl fmt::Display for ActionError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f,"{}",self.details)
+    }
+}
+
+impl Error for ActionError {
+    fn description(&self) -> &str {
+        &self.details
+    }
 }

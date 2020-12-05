@@ -1,10 +1,6 @@
-use lambda::error::HandlerError;
-
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
-
-use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use dynomite::{
     dynamodb::{
@@ -15,7 +11,8 @@ use rand::Rng;
 use serde_json::json;
 use futures::future::Future;
 
-use crate::helpers::{get_state, send_error, endpoint, update_state, DDB, RT, RequestError};
+use crate::ActionError;
+use crate::helpers::{get_state, update_state, DDB, RT, RequestError};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct JoinEvent {
@@ -30,38 +27,26 @@ struct EventData {
     code: Option<String>,
 }
 
-pub fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
+pub fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let p: JoinEvent = serde_json::from_str(&body).unwrap();
     
     if p.data.name == "" {
         error!("Empty name in request {}", c.aws_request_id);
-        send_error("Empty first name".to_string(),
-            e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
+        return Err(ActionError::new(&"Empty first name".to_string()));
     }
     else if p.data.secret == "" {
         error!("Empty secret in request {}", c.aws_request_id);
-        send_error("Empty secret".to_string(),
-            e.request_context.connection_id.clone().unwrap(), endpoint(&e.request_context));
+        return Err(ActionError::new(&"Empty secret".to_string()));
     }
-    else {
-        match p.data.code {
-            None => new_game(e, p.data.name, p.data.secret),
-            Some(c) => join_game(e, p.data.name, p.data.secret, c),
-        };
+    match p.data.code {
+        None => new_game(e, p.data.name, p.data.secret),
+        Some(c) => join_game(e, p.data.name, p.data.secret, c),
     }
-
-    Ok(ApiGatewayProxyResponse {
-        status_code: 200,
-        headers: HashMap::new(),
-        multi_value_headers: HashMap::new(),
-        body: None,
-        is_base64_encoded: None,
-    })
 }
 
-fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String) {
+fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
     let mut rng = rand::thread_rng();
@@ -75,7 +60,7 @@ fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret
             data: HashMap::new(),
         },
         players: vec![common::Player{
-            id: event.request_context.connection_id.clone().unwrap(),
+            id: event.request_context.connection_id.unwrap(),
             name,
             secret,
             attributes: common::PlayerAttributes {
@@ -120,12 +105,13 @@ fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret
 
     if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
         log::error!("failed to perform new game connection operation: {:?}", err);
-        send_error(format!("Error creating game: {:?}", err),
-            event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+        return Err(ActionError::new(&format!("Error creating game: {:?}", err)))
     }
+
+    Ok(())
 }
 
-fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) {
+fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
     let item = get_state(table_name.clone(), event.clone(), lobby_id);
@@ -138,7 +124,7 @@ fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secre
                 let mut new_players = data.players.clone();
                 new_players.retain(|player| player.name != name);
                 new_players.push(common::Player{
-                    id: event.request_context.connection_id.clone().unwrap(),
+                    id: event.request_context.connection_id.unwrap(),
                     name,
                     secret,
                     attributes: existing_player[0].attributes.clone(),
@@ -151,7 +137,7 @@ fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secre
         }
         else if data.phase.name == common::PhaseName::Lobby {
             data.players.push(common::Player{
-                id: event.request_context.connection_id.clone().unwrap(),
+                id: event.request_context.connection_id.unwrap(),
                 name,
                 secret,
                 attributes: common::PlayerAttributes {
@@ -163,9 +149,10 @@ fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secre
             });
         }
         else {
-            send_error("Error cannot join an in-progress game".to_string(),
-                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
+            return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
         }
-        update_state(item, data, table_name, event);
+        update_state(item, data, table_name)
+    } else {
+        Err(ActionError::new(&"Game not found".to_string()))
     }
 }
