@@ -58,7 +58,7 @@ async fn process_record(record: &common::DDBRecord) {
                                     let players = new_image.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
                                         let filtered_state = filter_state(&p, new_image.clone());
-                                        broadcast(p.clone(), filtered_state)
+                                        broadcast(p, filtered_state)
                                     }).collect::<Vec<_>>();
                                     let results = join_all(broadcasts).await;
                                     for r in results.into_iter() {
