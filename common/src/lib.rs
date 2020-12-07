@@ -5,10 +5,13 @@ use std::collections::HashMap;
 use serde::ser::Serialize;
 use serde::de::{Deserialize, Deserializer, DeserializeOwned};
 use serde_json::Value;
+use dynomite::{
+    Attributes, Attribute, Item,
+};
 
 use aws_lambda_events::event::apigw::ApiGatewayRequestIdentity;
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[derive(Attribute, Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum PlayerRole {
     Unknown,
     Villager,
@@ -20,7 +23,7 @@ pub enum PlayerRole {
     Tanner,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[derive(Attribute, Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum PlayerTeam {
     Unknown,
     Good,
@@ -29,7 +32,7 @@ pub enum PlayerTeam {
     Mod,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Attributes, Serialize, Deserialize, Clone, Debug)]
 pub struct PlayerAttributes {
     pub role: PlayerRole,
     pub team: PlayerTeam,
@@ -37,7 +40,7 @@ pub struct PlayerAttributes {
     pub visible_to: Vec<String>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Attributes, Serialize, Deserialize, Clone, Debug)]
 pub struct Player {
     pub id: String,
     pub name: String,
@@ -45,7 +48,7 @@ pub struct Player {
     pub attributes: PlayerAttributes,
 }
 
-#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[derive(Attribute, Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum PhaseName {
     Lobby,
     Day,
@@ -58,7 +61,7 @@ pub enum PhaseName {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StreamRecord {
     #[serde(rename = "NewImage")]
-    pub new_image: Option<DdbObject>,
+    pub new_image: Option<GameState>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(rename = "StreamViewType")]
     pub stream_view_type: Option<String>,
@@ -99,38 +102,24 @@ pub struct DDBRecord {
 pub struct DDBStreamEvent {
     #[serde(default)]
     #[serde(rename = "Records")]
-    pub records: Option<Vec<DDBRecord>>,
+    pub records: Option<Vec<GameState>>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Attributes, Serialize, Deserialize, Debug, Clone)]
 pub struct Phase {
     pub name: PhaseName,
     pub data: HashMap<String, String>,
 }
 
-#[derive(Deserialize, Serialize, Clone)]
+#[derive(Item, Serialize, Deserialize, Debug, Clone)]
 pub struct GameState {
-    #[serde(rename = "lobbyId")]
+    #[dynomite(partition_key)]
     pub lobby_id: String,
     pub phase: Phase,
     pub players: Vec<Player>,
     pub internal_state: HashMap<String, String>,
-}
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-pub struct DdbObject {
-    #[serde(deserialize_with = "deserialize_lambda_map")]
-    #[serde(default)]
-    pub lobby_id: HashMap<String, String>,
-    #[serde(deserialize_with = "deserialize_lambda_map")]
-    #[serde(default)]
-    pub ttl: HashMap<String, String>,
-    #[serde(deserialize_with = "deserialize_lambda_map")]
-    #[serde(default)]
-    pub version: HashMap<String, String>,
-    #[serde(deserialize_with = "deserialize_lambda_map")]
-    #[serde(default)]
-    pub data: HashMap<String, String>,
+    pub ttl: u32,
+    pub version: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]

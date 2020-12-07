@@ -1,12 +1,6 @@
 use std::env;
 use std::collections::HashMap;
 
-use dynomite::{
-    dynamodb::{
-        AttributeValue,
-    },
-};
-
 use crate::ActionError;
 use crate::helpers::{get_state, update_state};
 
@@ -22,26 +16,24 @@ struct EventData {
     player: String,
 }
 
-pub fn handle_bodyguard(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
+pub async fn handle_bodyguard(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: BodyguardEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = get_state(table_name, e.clone(), event.data.code.clone());
-    if let Some(item) = current_game {
-        move_to_werewolf(e, item, event.data.player)
+    let current_game = get_state(table_name, event.data.code.clone()).await;
+    if let Ok(item) = current_game {
+        move_to_werewolf(e, item, event.data.player).await
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
 }
 
-fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, protect_player_name: String) 
+async fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, protect_player_name: String) 
         -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
-
-    let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
     let players: Vec<common::Player> = game_state.players.clone().into_iter().filter(|p| p.id == event.request_context.connection_id.clone().unwrap()).collect();
     if players.len() != 1 {
@@ -67,5 +59,5 @@ fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, item: HashMa
         name: common::PhaseName::Werewolf,
         data: HashMap::new(),
     };
-    update_state(item, game_state, table_name)
+    update_state(game_state, table_name).await
 }
