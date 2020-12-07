@@ -1,16 +1,10 @@
 use std::env;
 use std::collections::HashMap;
 
-use dynomite::{
-    dynamodb::{
-        DynamoDb, AttributeValue, GetItemInput, GetItemOutput,
-    },
-};
-use futures::Future;
 use rand::Rng;
 
 use crate::ActionError;
-use crate::helpers::{update_state, DDB, RT, RequestResult, RequestError};
+use crate::helpers::{get_state, update_state};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct StartEvent {
@@ -28,60 +22,25 @@ struct EventData {
     code: String,
 }
 
-pub fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
+pub async fn handle_start(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: StartEvent = serde_json::from_str(&body).unwrap();
-    
     let table_name = env::var("tableName").unwrap();
 
-    let mut ddb_keys = HashMap::new();
-    ddb_keys.insert("lobby_id".to_string(), AttributeValue {
-        s: Some(event.data.code.clone()),
-        ..Default::default()
-    });
-
-    let result = DDB.with(|ddb| {
-        ddb.get_item(GetItemInput {
-            table_name: table_name.clone(),
-            key: ddb_keys,
-            ..GetItemInput::default()
-        })
-        .map(RequestResult::Get)
-        .map_err(RequestError::Get)
-    });
-
-    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        Err(err) => {
-            log::error!("failed to perform new game connection operation: {:?}", err);
-            Err(ActionError::new(&format!("Lobby not found: {:?}", err)))
-        },
-        Ok(result) => {
-            match result {
-                RequestResult::Get(result) => {
-                    let result: GetItemOutput = result;
-                    match result.item {
-                        None => {
-                            error!("Lobby not found: {:?}", event.data.code);
-                            Err(ActionError::new(&"Unable to find lobby".to_string()))
-                        },
-                        Some(item) => {
-                            let data = event.data;
-                            move_to_day(e, item, data.werewolves, data.bodyguard.unwrap_or(false), data.seer.unwrap_or(true),
-                                data.lycan.unwrap_or(false), data.tanner.unwrap_or(false))
-                        },
-                    }
-                }
-            }
-        }
+    let current_game = get_state(table_name, event.data.code.clone()).await;
+    if let Ok(item) = current_game { 
+        let data = event.data;
+        move_to_day(e, item, data.werewolves, data.bodyguard.unwrap_or(false), data.seer.unwrap_or(true),
+            data.lycan.unwrap_or(false), data.tanner.unwrap_or(false)).await
+    } else {
+        Err(ActionError::new(&"Game not found".to_string()))
     }
 }
 
-fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<String, AttributeValue>, werewolves: u32, bodyguard: bool, seer: bool,
+async fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, werewolves: u32, bodyguard: bool, seer: bool,
         lycan: bool, tanner: bool) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
-
-    let mut game_state: common::GameState = serde_json::from_str(&item["data"].s.clone().unwrap()).unwrap();
 
     let mut roles_count = werewolves + 1;
     if bodyguard { roles_count += 1 }
@@ -170,5 +129,5 @@ fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, item: HashMap<Str
         data: HashMap::new(),
     };
 
-    update_state(item, game_state, table_name)
+    update_state(game_state, table_name).await
 }

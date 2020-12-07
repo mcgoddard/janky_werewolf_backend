@@ -5,37 +5,20 @@ use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
 };
 use rusoto_core::Region;
-use rusoto_core::RusotoError;
 use serde_json::json;
 use dynomite::{
     dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput, GetItemOutput, PutItemError, GetItemError
-    },
+        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput,
+    }, FromAttributes
 };
 use tokio::runtime::Runtime;
-use futures::Future;
 
 use crate::ActionError;
-
-thread_local!(
-    pub static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
-);
 
 thread_local!(
     pub static RT: RefCell<Runtime> =
         RefCell::new(Runtime::new().expect("failed to initialize runtime"));
 );
-
-#[derive(Debug)]
-pub enum RequestResult {
-    Get(GetItemOutput),
-}
-
-#[derive(Debug)]
-pub enum RequestError {
-    Connect(RusotoError<PutItemError>),
-    Get(RusotoError<GetItemError>),
-}
 
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
@@ -63,87 +46,67 @@ pub fn endpoint(ctx: &common::ApiGatewayWebsocketProxyRequestContext) -> String 
     }
 }
 
-pub fn update_state(item: HashMap<String, AttributeValue, std::collections::hash_map::RandomState>, game_state: common::GameState,
-                    table_name: String) -> Result<(), ActionError> {
-    let mut new_item = item;
-    new_item.insert("version".to_string(), AttributeValue {
-        n: Some(format!("{}", new_item["version"].n.clone().unwrap().parse::<i32>().unwrap() + 1)),
-        ..Default::default()
-    });
-    let d = json!(game_state);
-    new_item.insert("data".to_string(), AttributeValue {
-        s: Some(d.to_string()),
-        ..Default::default()
-    });
+pub async fn update_state(mut game_state: common::GameState, table_name: String) -> Result<(), ActionError> {
+    game_state.version += 1;
     let condition_expression = "version < :version".to_string();
     let mut attribute_values = HashMap::default();
     attribute_values.insert(":version".to_string(), AttributeValue {
-        n: Some(new_item["version"].n.clone().unwrap()),
+        n: Some(game_state.version.to_string()),
         ..Default::default()
     });
-    let result = DDB.with(|ddb| {
-        ddb.put_item(PutItemInput {
+    let ddb = DynamoDbClient::new(Default::default());
+    let result = ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some(condition_expression),
-            item: new_item,
+            item: game_state.into(),
             expression_attribute_values: Some(attribute_values),
             ..PutItemInput::default()
         })
-        .map(drop)
-        .map_err(RequestError::Connect)
-    });
+        .await;
 
-    if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        log::error!("Error saving state: {:?}", err);
-        return Err(ActionError::new(&format!("Error saving state, please try again: {:?}", err)))
-    };
-
-    Ok(())
+    match result {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("Error saving state, please try again: {:?}", err);
+            Err(ActionError::new(&"Error saving state, please try again".to_string()))
+        },
+    }
 }
 
-pub fn get_state(table_name: String, event: common::ApiGatewayWebsocketProxyRequest, 
-             lobby_id: String) -> Option<HashMap<String, AttributeValue>> {
+pub async fn get_state(table_name: String, lobby_id: String) -> Result<common::GameState, ActionError> {
     let mut ddb_keys = HashMap::new();
     ddb_keys.insert("lobby_id".to_string(), AttributeValue {
         s: Some(lobby_id.clone()),
         ..Default::default()
     });
 
-    let result = DDB.with(|ddb| {
-        ddb.get_item(GetItemInput {
-            table_name: table_name.clone(),
-            key: ddb_keys,
-            ..GetItemInput::default()
-        })
-        .map(RequestResult::Get)
-        .map_err(RequestError::Get)
-    });
+    let ddb = DynamoDbClient::new(Default::default());
+    let item = ddb.get_item(GetItemInput {
+        table_name: table_name.clone(),
+        key: ddb_keys,
+        ..GetItemInput::default()
+    }).await;
 
-    match RT.with(|rt| rt.borrow_mut().block_on(result)) {
-        Err(err) => {
-            log::error!("failed to find the game: {:?}", err);
-            send_error(format!("Lobby not found: {:?}", err),
-                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
-        },
-        Ok(result) => {
-            match result {
-                RequestResult::Get(result) => {
-                    let result: GetItemOutput = result;
-                    match result.item {
-                        None => {
-                            error!("Lobby not found: {:?}", lobby_id);
-                            send_error("Unable to find lobby".to_string(),
-                                event.request_context.connection_id.clone().unwrap(), endpoint(&event.request_context));
-                        },
-                        Some(item) => {
-                            return Some(item);
+    match item {
+        Ok(i) => {
+            match i.item.map(common::GameState::from_attrs) {
+                Some(i) => {
+                    match i {
+                        Ok(gs) => Ok(gs),
+                        Err(e) => {
+                            error!("Game state corrupted: {}", e);
+                            Err(ActionError::new(&"Game state corrupted".to_string()))
                         },
                     }
-                }
+                },
+                None => Err(ActionError::new(&"Lobby not found".to_string())),
             }
-        }
+        },
+        Err(e) => {
+            error!("Error fetching lobby: {:?}", e);
+            Err(ActionError::new(&"Error fetching lobby".to_string()))
+        },
     }
-    None
 }
 
 pub fn check_game_over(players: Vec<common::Player>) -> Option<Vec<common::PlayerTeam>> {

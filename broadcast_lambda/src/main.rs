@@ -52,7 +52,6 @@ fn process_record(record: &common::DDBRecord) {
                         "NEW_IMAGE" => {
                             match &stream_record.new_image {
                                 Some(new_image) => {
-                                    let new_image: common::GameState = serde_json::from_str(&new_image.data["S"]).unwrap();
                                     let players = new_image.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
                                         let new_image = new_image.clone();
