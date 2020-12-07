@@ -53,7 +53,8 @@ struct RouteEvent {
     data: Map<String, Value>,
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     SimpleLogger::new().with_level(LevelFilter::Info).init()?;
     lambda!(my_handler);
 
