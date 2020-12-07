@@ -113,7 +113,7 @@ pub struct Phase {
 
 #[derive(Item, Serialize, Deserialize, Debug, Clone)]
 pub struct GameState {
-    #[serde(rename = "lobbyId")]
+    #[serde(rename(serialize = "lobbyId"))]
     #[dynomite(partition_key)]
     pub lobby_id: String,
     pub phase: Phase,
