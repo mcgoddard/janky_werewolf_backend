@@ -5,16 +5,19 @@ extern crate simple_logger;
 
 use lambda::error::HandlerError;
 
+use futures::executor::block_on;
+use futures::future::join_all;
+use bytes::Bytes;
+
 use std::error::Error;
 use std::env;
 use std::collections::HashMap;
-use std::thread;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 use rusoto_apigatewaymanagementapi::{
-    ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
+    ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest, PostToConnectionError,
 };
-use rusoto_core::Region;
+use rusoto_core::{Region, RusotoError};
 use serde_json::json;
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -28,7 +31,7 @@ fn my_handler(e: common::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatew
     match e.records {
         Some(records) => {
             for record in &records {
-                process_record(record);
+                block_on(process_record(record));
             }
         },
         None => log::warn!("No records in event, empty execution..."),
@@ -43,7 +46,7 @@ fn my_handler(e: common::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatew
     })
 }
 
-fn process_record(record: &common::DDBRecord) {
+async fn process_record(record: &common::DDBRecord) {
     match &record.dynamodb {
         Some(stream_record) => {
             match &stream_record.stream_view_type {
@@ -54,14 +57,12 @@ fn process_record(record: &common::DDBRecord) {
                                 Some(new_image) => {
                                     let players = new_image.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
-                                        let new_image = new_image.clone();
-                                        thread::spawn(move || {
-                                            let filtered_state = filter_state(&p, new_image);
-                                            broadcast(&p, filtered_state);
-                                        })
+                                        let filtered_state = filter_state(&p, new_image.clone());
+                                        broadcast(p.clone(), filtered_state)
                                     }).collect::<Vec<_>>();
-                                    for b in broadcasts {
-                                        if let Err(err) = b.join() {
+                                    let results = join_all(broadcasts).await;
+                                    for r in results.into_iter() {
+                                        if let Err(err) = r {
                                             log::error!("Error broadcasting: {:?}", err);
                                         }
                                     }
@@ -79,16 +80,15 @@ fn process_record(record: &common::DDBRecord) {
     }
 }
 
-fn broadcast(player: &common::Player, game_state: common::GameState) {
+async fn broadcast(player: common::Player, game_state: common::GameState) -> Result<(), RusotoError<PostToConnectionError>> {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
         name: Region::EuWest2.name().into(),
         endpoint: endpoint(),
     });
-    let result = client.post_to_connection(PostToConnectionRequest {
-                    connection_id: player.id.clone(),
-                    data: serde_json::to_vec(&json!({ "game_state": game_state })).unwrap_or_default(),
-                }).sync();
-    if let Err(e) = result { log::error!("Unable to send state: {:?}", e) }
+    client.post_to_connection(PostToConnectionRequest {
+        connection_id: player.id.clone(),
+        data: Bytes::from(json!({ "game_state": game_state }).to_string()),
+    }).await
 }
 
 fn filter_state(player: &common::Player, game_state: common::GameState) -> common::GameState {
