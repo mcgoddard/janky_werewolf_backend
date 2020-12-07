@@ -172,8 +172,10 @@ dependencies = [
  "rusoto_core",
  "serde",
  "serde_derive",
+ "serde_dynamodb",
  "serde_json",
  "simple_logger",
+ "tokio 0.2.23",
 ]
 
 [[package]]
@@ -262,6 +264,7 @@ version = "0.1.0"
 dependencies = [
  "aws_lambda_events",
  "dynomite",
+ "rusoto_dynamodb",
  "serde",
  "serde_derive",
  "serde_json",
@@ -1711,6 +1714,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_dynamodb"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bd887fdf521b38d7fa4bdcec1b72dc47d41c085240f453b2cf7dd0242bf3ea4"
+dependencies = [
+ "bytes 0.5.6",
+ "rusoto_dynamodb",
+ "serde",
+]
+
+[[package]]
 name = "serde_json"
 version = "1.0.51"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2042,6 +2056,7 @@ dependencies = [
  "mio",
  "mio-named-pipes",
  "mio-uds",
+ "num_cpus",
  "pin-project-lite 0.1.11",
  "signal-hook-registry",
  "slab",

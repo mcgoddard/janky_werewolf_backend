@@ -19,6 +19,9 @@ use rusoto_apigatewaymanagementapi::{
 };
 use rusoto_core::{Region, RusotoError};
 use serde_json::json;
+use serde_dynamodb;
+
+use common::GameState;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -56,9 +59,10 @@ async fn process_record(record: &common::DDBRecord) {
                         "NEW_IMAGE" => {
                             match &stream_record.new_image {
                                 Some(new_image) => {
-                                    let players = new_image.players.clone();
+                                    let game_state: GameState = serde_dynamodb::from_hashmap(new_image.clone()).unwrap();
+                                    let players = game_state.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
-                                        let filtered_state = filter_state(&p, new_image.clone());
+                                        let filtered_state = filter_state(&p, game_state.clone());
                                         broadcast(p, filtered_state)
                                     }).collect::<Vec<_>>();
                                     let results = join_all(broadcasts).await;
