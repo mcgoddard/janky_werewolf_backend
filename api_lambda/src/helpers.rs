@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::cell::RefCell;
 
 use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
@@ -11,14 +10,8 @@ use dynomite::{
         DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput,
     }, FromAttributes
 };
-use tokio::runtime::Runtime;
 
 use crate::ActionError;
-
-thread_local!(
-    pub static RT: RefCell<Runtime> =
-        RefCell::new(Runtime::new().expect("failed to initialize runtime"));
-);
 
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {

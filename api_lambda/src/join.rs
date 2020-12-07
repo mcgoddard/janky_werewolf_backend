@@ -74,7 +74,7 @@ async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, 
         }],
         internal_state: HashMap::new(),
         version: 1,
-        ttl: ttl,
+        ttl,
     };
     let ddb = DynamoDbClient::new(Default::default());
     let result = ddb.put_item(PutItemInput {
