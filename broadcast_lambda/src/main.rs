@@ -19,7 +19,6 @@ use rusoto_apigatewaymanagementapi::{
 };
 use rusoto_core::{Region, RusotoError};
 use serde_json::json;
-use serde_dynamodb;
 
 use common::GameState;
 
