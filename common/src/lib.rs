@@ -61,7 +61,7 @@ pub enum PhaseName {
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct StreamRecord {
     #[serde(rename = "NewImage")]
-    pub new_image: Option<GameState>,
+    pub new_image: Option<HashMap<String, rusoto_dynamodb::AttributeValue>>,
     #[serde(deserialize_with = "deserialize_lambda_string")]
     #[serde(rename = "StreamViewType")]
     pub stream_view_type: Option<String>,
