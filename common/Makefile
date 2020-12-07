@@ -15,4 +15,4 @@ clean:
 	cargo clean
 
 clippy:
-	cargo clippy
+	cargo clippy -- -D warnings -A clippy::needless-arbitrary-self-type

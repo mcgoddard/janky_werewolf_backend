@@ -102,7 +102,7 @@ pub struct DDBRecord {
 pub struct DDBStreamEvent {
     #[serde(default)]
     #[serde(rename = "Records")]
-    pub records: Option<Vec<GameState>>,
+    pub records: Option<Vec<DDBRecord>>,
 }
 
 #[derive(Attributes, Serialize, Deserialize, Debug, Clone)]
