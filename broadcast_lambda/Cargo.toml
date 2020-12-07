@@ -20,6 +20,7 @@ env_logger = "0.6"
 openssl = { version = "0.10", features = ["vendored"] }
 common = { path = "../common" }
 bytes = "0.5.0"
+tokio = { version = "0.2.4", features = ["full"] }
 
 [[bin]]
 name = "bootstrap"
