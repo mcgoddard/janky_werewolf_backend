@@ -20,7 +20,8 @@ use rusoto_apigatewaymanagementapi::{
 use rusoto_core::{Region, RusotoError};
 use serde_json::json;
 
-fn main() -> Result<(), Box<dyn Error>> {
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn Error>> {
     simple_logger::init_with_level(log::Level::Info)?;
     lambda!(my_handler);
 
