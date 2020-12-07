@@ -11,13 +11,15 @@ serde = "^1"
 serde_json = "^1"
 serde_derive = "^1"
 log = "^0.4"
+futures = "0.3.8"
 simple_logger = "^1"
 aws_lambda_events = "^0.2.7"
-rusoto_core = "0.38"
-rusoto_apigatewaymanagementapi = "0.38"
+rusoto_core = "0.45"
+rusoto_apigatewaymanagementapi = "0.45"
 env_logger = "0.6"
 openssl = { version = "0.10", features = ["vendored"] }
 common = { path = "../common" }
+bytes = "0.5.0"
 
 [[bin]]
 name = "bootstrap"
