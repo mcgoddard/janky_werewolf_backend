@@ -7,6 +7,7 @@ use bytes::Bytes;
 
 use std::env;
 use std::collections::HashMap;
+use std::time::Instant;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 use rusoto_apigatewaymanagementapi::{
@@ -23,7 +24,7 @@ type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[lambda]
 #[tokio::main]
 async fn main(e: common::DDBStreamEvent, _c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
-    // simple_logger::init_with_level(log::Level::Info)?;
+    let start = Instant::now();
     match e.records {
         Some(records) => {
             for record in &records {
@@ -32,6 +33,9 @@ async fn main(e: common::DDBStreamEvent, _c: Context) -> Result<ApiGatewayProxyR
         },
         None => log::warn!("No records in event, empty execution..."),
     }
+    let duration = start.elapsed();
+    println!("Time elapsed in processing is: {:?}", duration);
+
 
     Ok(ApiGatewayProxyResponse {
         status_code: 200,
