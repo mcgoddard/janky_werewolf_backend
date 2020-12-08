@@ -10,6 +10,7 @@ use dynomite::{
 };
 use rand::Rng;
 use lambda::Context;
+use futures::executor::block_on;
 
 use crate::ActionError;
 use crate::helpers::{get_state, update_state};
@@ -27,7 +28,7 @@ struct EventData {
     code: Option<String>,
 }
 
-pub async fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<(), ActionError> {
+pub fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let p: JoinEvent = serde_json::from_str(&body).unwrap();
@@ -41,12 +42,12 @@ pub async fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: Context)
         return Err(ActionError::new(&"Empty secret".to_string()));
     }
     match p.data.code {
-        None => new_game(e, p.data.name, p.data.secret).await,
-        Some(code) => join_game(e, p.data.name, p.data.secret, code).await,
+        None => new_game(e, p.data.name, p.data.secret),
+        Some(code) => join_game(e, p.data.name, p.data.secret, code),
     }
 }
 
-async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String) -> Result<(), ActionError> {
+fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
     let code = create_random_code();
@@ -77,12 +78,12 @@ async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, 
         ttl,
     };
     let ddb = DynamoDbClient::new(Default::default());
-    let result = ddb.put_item(PutItemInput {
+    let result = block_on(ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some("attribute_not_exists(lobby_id)".to_string()),
             item: game_state.into(),
             ..PutItemInput::default()
-        }).await;
+        }));
 
     match result {
         Ok(_) => Ok(()),
@@ -93,11 +94,11 @@ async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, 
     }
 }
 
-async fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) -> Result<(), ActionError> {
+fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
     let start = Instant::now();
-    let item = get_state(table_name.clone(), lobby_id).await;
+    let item = get_state(table_name.clone(), lobby_id);
     let duration = start.elapsed();
     println!("Time elapsed getting game state is: {:?}", duration);
 
@@ -137,10 +138,10 @@ async fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String,
             return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
         }
         let start = Instant::now();
-        let result = update_state(data, table_name).await;
+        let result = update_state(data, table_name);
         let duration = start.elapsed();
         println!("Time elapsed putting game state is: {:?}", duration);
-        return result;
+        result
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }

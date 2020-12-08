@@ -11,6 +11,7 @@ use dynomite::{
         DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput,
     }, FromAttributes
 };
+use futures::executor::block_on;
 
 use crate::ActionError;
 
@@ -40,7 +41,7 @@ pub fn endpoint(ctx: &common::ApiGatewayWebsocketProxyRequestContext) -> String 
     }
 }
 
-pub async fn update_state(mut game_state: common::GameState, table_name: String) -> Result<(), ActionError> {
+pub fn update_state(mut game_state: common::GameState, table_name: String) -> Result<(), ActionError> {
     game_state.version += 1;
     let condition_expression = "version < :version".to_string();
     let mut attribute_values = HashMap::default();
@@ -53,13 +54,13 @@ pub async fn update_state(mut game_state: common::GameState, table_name: String)
     let duration = start.elapsed();
     println!("Time elapsed in serialisation is: {:?}", duration);
     let ddb = DynamoDbClient::new(Default::default());
-    let result = ddb.put_item(PutItemInput {
+    let result = block_on(ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some(condition_expression),
             item,
             expression_attribute_values: Some(attribute_values),
             ..PutItemInput::default()
-        }).await;
+        }));
 
     match result {
         Ok(_) => Ok(()),
@@ -70,19 +71,19 @@ pub async fn update_state(mut game_state: common::GameState, table_name: String)
     }
 }
 
-pub async fn get_state(table_name: String, lobby_id: String) -> Result<common::GameState, ActionError> {
+pub fn get_state(table_name: String, lobby_id: String) -> Result<common::GameState, ActionError> {
     let mut ddb_keys = HashMap::new();
     ddb_keys.insert("lobby_id".to_string(), AttributeValue {
-        s: Some(lobby_id.clone()),
+        s: Some(lobby_id),
         ..Default::default()
     });
 
     let ddb = DynamoDbClient::new(Default::default());
-    let item = ddb.get_item(GetItemInput {
-        table_name: table_name.clone(),
+    let item = block_on(ddb.get_item(GetItemInput {
+        table_name,
         key: ddb_keys,
         ..GetItemInput::default()
-    }).await;
+    }));
 
     match item {
         Ok(i) => {

@@ -18,26 +18,26 @@ use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use serde_json::{Value, Map};
 
-mod bodyguard;
-use bodyguard::handle_bodyguard;
+// mod bodyguard;
+// use bodyguard::handle_bodyguard;
 
 mod join;
 use join::handle_join;
 
-mod lynch;
-use lynch::handle_lynch;
+// mod lynch;
+// use lynch::handle_lynch;
 
-mod seer;
-use seer::handle_seer;
+// mod seer;
+// use seer::handle_seer;
 
-mod sleep;
-use sleep::handle_sleep;
+// mod sleep;
+// use sleep::handle_sleep;
 
-mod start;
-use start::handle_start;
+// mod start;
+// use start::handle_start;
 
-mod werewolf;
-use werewolf::handle_werewolf;
+// mod werewolf;
+// use werewolf::handle_werewolf;
 
 mod helpers;
 
@@ -60,13 +60,13 @@ async fn main(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
     
     let error = match &event.action as &str {
-        "bodyguard" => handle_bodyguard(e.clone()).await,
-        "join" => handle_join(e.clone(), c).await,
-        "lynch" => handle_lynch(e.clone()).await,
-        "seer" => handle_seer(e.clone()).await,
-        "sleep" => handle_sleep(e.clone()).await,
-        "start" => handle_start(e.clone()).await,
-        "werewolf" => handle_werewolf(e.clone()).await,
+        // "bodyguard" => handle_bodyguard(e.clone()),
+        "join" => handle_join(e.clone(), c),
+        // "lynch" => handle_lynch(e.clone()),
+        // "seer" => handle_seer(e.clone()),
+        // "sleep" => handle_sleep(e.clone()),
+        // "start" => handle_start(e.clone()),
+        // "werewolf" => handle_werewolf(e.clone()),
         _ => handle_unknown(event.action),
     };
     let duration = start.elapsed();
