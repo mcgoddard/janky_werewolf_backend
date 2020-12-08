@@ -1,15 +1,10 @@
-#[macro_use]
-extern crate lambda_runtime as lambda;
+extern crate lambda;
 extern crate serde_derive;
 extern crate simple_logger;
 
-use lambda::error::HandlerError;
-
-use futures::executor::block_on;
 use futures::future::join_all;
 use bytes::Bytes;
 
-use std::error::Error;
 use std::env;
 use std::collections::HashMap;
 
@@ -19,22 +14,20 @@ use rusoto_apigatewaymanagementapi::{
 };
 use rusoto_core::{Region, RusotoError};
 use serde_json::json;
+use lambda::{lambda, Context};
 
 use common::GameState;
 
+type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+#[lambda]
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main(e: common::DDBStreamEvent, _c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
     simple_logger::init_with_level(log::Level::Info)?;
-    lambda!(my_handler);
-
-    Ok(())
-}
-
-fn my_handler(e: common::DDBStreamEvent, _c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     match e.records {
         Some(records) => {
             for record in &records {
-                block_on(process_record(record));
+                process_record(record).await;
             }
         },
         None => log::warn!("No records in event, empty execution..."),

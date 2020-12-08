@@ -104,11 +104,23 @@ async fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, mut game_st
     }
 
 
+    let new_players = create_new_players(game_state.clone(), roles, event.request_context.connection_id.unwrap());
+
+    game_state.players = new_players;
+    game_state.phase = common::Phase {
+        name: common::PhaseName::Day,
+        data: HashMap::new(),
+    };
+
+    update_state(game_state, table_name).await
+}
+
+fn create_new_players(game_state: common::GameState, mut roles: Vec<common::PlayerAttributes>, connection_id: String) -> Vec<common::Player> {
     let mut new_players = vec![];
     let mut rng = rand::thread_rng();
     for player in &game_state.players {
         let mut new_player = player.clone();
-        if player.id == event.request_context.connection_id.clone().unwrap() {
+        if player.id == connection_id.clone() {
             new_player.attributes = common::PlayerAttributes {
                 role: common::PlayerRole::Mod,
                 team: common::PlayerTeam::Unknown,
@@ -122,12 +134,5 @@ async fn move_to_day(event: common::ApiGatewayWebsocketProxyRequest, mut game_st
         }
         new_players.push(new_player);
     }
-
-    game_state.players = new_players;
-    game_state.phase = common::Phase {
-        name: common::PhaseName::Day,
-        data: HashMap::new(),
-    };
-
-    update_state(game_state, table_name).await
+    new_players
 }

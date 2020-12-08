@@ -8,6 +8,7 @@ use dynomite::{
     },
 };
 use rand::Rng;
+use lambda::Context;
 
 use crate::ActionError;
 use crate::helpers::{get_state, update_state};
@@ -25,17 +26,17 @@ struct EventData {
     code: Option<String>,
 }
 
-pub async fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<(), ActionError> {
+pub async fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let p: JoinEvent = serde_json::from_str(&body).unwrap();
     
     if p.data.name == "" {
-        error!("Empty name in request {}", c.aws_request_id);
+        error!("Empty name in request {}", c.request_id);
         return Err(ActionError::new(&"Empty first name".to_string()));
     }
     else if p.data.secret == "" {
-        error!("Empty secret in request {}", c.aws_request_id);
+        error!("Empty secret in request {}", c.request_id);
         return Err(ActionError::new(&"Empty secret".to_string()));
     }
     match p.data.code {
@@ -47,9 +48,7 @@ pub async fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::
 async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
-    let mut rng = rand::thread_rng();
-    let valid_code_chars = vec!["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
-    let code: String = (0..4).map(|_| (valid_code_chars[rng.gen_range(0, 26) as usize]).to_owned()).collect();
+    let code = create_random_code();
 
     let since_the_epoch = SystemTime::now().duration_since(UNIX_EPOCH)
         .expect("Time went backwards");
@@ -137,4 +136,10 @@ async fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String,
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
+}
+
+fn create_random_code() -> String {
+    let mut rng = rand::thread_rng();
+    let valid_code_chars = vec!["A","B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T","U","V","W","X","Y","Z"];
+    (0..4).map(|_| (valid_code_chars[rng.gen_range(0, 26) as usize]).to_owned()).collect()
 }
