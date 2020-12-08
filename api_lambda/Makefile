@@ -17,4 +17,4 @@ clean:
 	cargo clean
 
 clippy:
-	cargo clippy -- -D warnings -A clippy::needless-arbitrary-self-type -A unused-must-use
+	cargo clippy -- -D warnings -A clippy::needless-arbitrary-self-type -A unused-must-use -A dead-code
