@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Instant;
 
 use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
@@ -52,7 +53,7 @@ pub async fn update_state(mut game_state: common::GameState, table_name: String)
     let duration = start.elapsed();
     println!("Time elapsed in serialisation is: {:?}", duration);
     let ddb = DynamoDbClient::new(Default::default());
-    ddb.put_item(PutItemInput {
+    let result = ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some(condition_expression),
             item: item,
