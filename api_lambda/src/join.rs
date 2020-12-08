@@ -1,6 +1,7 @@
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
+use std::time::Instant;
 
 use dynomite::{
     dynamodb::{
@@ -95,7 +96,10 @@ async fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, 
 async fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
+    let start = Instant::now();
     let item = get_state(table_name.clone(), lobby_id).await;
+    let duration = start.elapsed();
+    println!("Time elapsed getting game state is: {:?}", duration);
 
     if let Ok(item) = item {
         let mut data: common::GameState = item;
@@ -132,7 +136,11 @@ async fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String,
         else {
             return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
         }
-        update_state(data, table_name).await
+        let start = Instant::now();
+        let result = update_state(data, table_name).await;
+        let duration = start.elapsed();
+        println!("Time elapsed putting game state is: {:?}", duration);
+        return result;
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
