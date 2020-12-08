@@ -21,7 +21,7 @@ rusoto_apigatewaymanagementapi = "0.38"
 rusoto_core = "0.38"
 openssl = { version = "0.10", features = ["vendored"] }
 common = { path = "../common" }
-tokio = { version = "0.2.4", features = ["full"] }
+tokio = { version = "0.3.5", features = ["full"] }
 
 [[bin]]
 name = "bootstrap"
