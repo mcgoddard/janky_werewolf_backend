@@ -56,7 +56,7 @@ pub async fn update_state(mut game_state: common::GameState, table_name: String)
     let result = ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some(condition_expression),
-            item: item,
+            item,
             expression_attribute_values: Some(attribute_values),
             ..PutItemInput::default()
         }).await;
