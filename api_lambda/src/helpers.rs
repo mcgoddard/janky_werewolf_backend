@@ -47,24 +47,26 @@ pub async fn update_state(mut game_state: common::GameState, table_name: String)
         n: Some(game_state.version.to_string()),
         ..Default::default()
     });
+    let start = Instant::now();
+    let item = game_state.into();
+    let duration = start.elapsed();
+    println!("Time elapsed in serialisation is: {:?}", duration);
     let ddb = DynamoDbClient::new(Default::default());
     ddb.put_item(PutItemInput {
             table_name,
             condition_expression: Some(condition_expression),
-            item: game_state.into(),
+            item: item,
             expression_attribute_values: Some(attribute_values),
             ..PutItemInput::default()
-        });
-    //     .await;
+        }).await;
 
-    // match result {
-    //     Ok(_) => Ok(()),
-    //     Err(err) => {
-    //         error!("Error saving state, please try again: {:?}", err);
-    //         Err(ActionError::new(&"Error saving state, please try again".to_string()))
-    //     },
-    // }
-    Ok(())
+    match result {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("Error saving state, please try again: {:?}", err);
+            Err(ActionError::new(&"Error saving state, please try again".to_string()))
+        },
+    }
 }
 
 pub async fn get_state(table_name: String, lobby_id: String) -> Result<common::GameState, ActionError> {
