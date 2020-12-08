@@ -23,7 +23,7 @@ type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[lambda]
 #[tokio::main]
 async fn main(e: common::DDBStreamEvent, _c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
-    simple_logger::init_with_level(log::Level::Info)?;
+    // simple_logger::init_with_level(log::Level::Info)?;
     match e.records {
         Some(records) => {
             for record in &records {

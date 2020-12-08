@@ -17,8 +17,8 @@ use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
 use serde_json::{Value, Map};
 
-use simple_logger::SimpleLogger;
-use log::LevelFilter;
+// use simple_logger::SimpleLogger;
+// use log::LevelFilter;
 
 mod bodyguard;
 use bodyguard::handle_bodyguard;
@@ -56,7 +56,7 @@ type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
 #[lambda]
 #[tokio::main]
 async fn main(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
-    SimpleLogger::new().with_level(LevelFilter::Info).init()?;
+    // SimpleLogger::new().with_level(LevelFilter::Info).init()?;
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
