@@ -1,19 +1,17 @@
-#[macro_use]
-extern crate lambda_runtime as lambda;
+extern crate lambda;
 #[macro_use]
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
 extern crate simple_logger;
 extern crate rand;
+extern crate tokio;
 
-use lambda::error::HandlerError;
+use lambda::{lambda, Context};
 
 use std::fmt;
 use std::error::Error;
 use std::collections::HashMap;
-
-use futures::executor::block_on;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
@@ -53,27 +51,24 @@ struct RouteEvent {
     data: Map<String, Value>,
 }
 
+type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+#[lambda]
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn Error>> {
+async fn main(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
     SimpleLogger::new().with_level(LevelFilter::Info).init()?;
-    lambda!(my_handler);
-
-    Ok(())
-}
-
-fn my_handler(e: common::ApiGatewayWebsocketProxyRequest, c: lambda::Context) -> Result<ApiGatewayProxyResponse, HandlerError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
     
     let error = match &event.action as &str {
-        "bodyguard" => block_on(handle_bodyguard(e.clone())),
-        "join" => block_on(handle_join(e.clone(), c)),
-        "lynch" => block_on(handle_lynch(e.clone())),
-        "seer" => block_on(handle_seer(e.clone())),
-        "sleep" => block_on(handle_sleep(e.clone())),
-        "start" => block_on(handle_start(e.clone())),
-        "werewolf" => block_on(handle_werewolf(e.clone())),
+        "bodyguard" => handle_bodyguard(e.clone()).await,
+        "join" => handle_join(e.clone(), c).await,
+        "lynch" => handle_lynch(e.clone()).await,
+        "seer" => handle_seer(e.clone()).await,
+        "sleep" => handle_sleep(e.clone()).await,
+        "start" => handle_start(e.clone()).await,
+        "werewolf" => handle_werewolf(e.clone()).await,
         _ => handle_unknown(event.action),
     };
 
