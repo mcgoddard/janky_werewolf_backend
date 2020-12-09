@@ -15,7 +15,7 @@ use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest, PostToConnectionError,
 };
 use rusoto_core::{Region, RusotoError};
-use serde_json::json;
+use serde_json::{json, Value};
 use lambda::{lambda, Context};
 
 use common::GameState;
@@ -67,7 +67,12 @@ async fn process_record(record: &common::DDBRecord) {
                                     let players = game_state.players.clone();
                                     let broadcasts = players.into_iter().map(|p| {
                                         let filtered_state = filter_state(&p, game_state.clone());
-                                        broadcast(p, filtered_state)
+                                        let value_state = serde_json::to_value(&filtered_state).unwrap();
+                                        let mut map_state: HashMap<String, Value> = serde_json::from_value(value_state).unwrap();
+                                        let lobby_id = map_state.remove("lobby_id").unwrap();
+                                        map_state.insert("lobbyId".to_string(), lobby_id);
+                                        map_state.remove("ttl");
+                                        broadcast(p, map_state)
                                     }).collect::<Vec<_>>();
                                     let results = join_all(broadcasts).await;
                                     for r in results.into_iter() {
@@ -89,7 +94,7 @@ async fn process_record(record: &common::DDBRecord) {
     }
 }
 
-async fn broadcast(player: common::Player, game_state: common::GameState) -> Result<(), RusotoError<PostToConnectionError>> {
+async fn broadcast(player: common::Player, game_state: HashMap<String, Value>) -> Result<(), RusotoError<PostToConnectionError>> {
     API_GW.with(|api_gw| {
         block_on(api_gw.post_to_connection(PostToConnectionRequest {
             connection_id: player.id.clone(),
