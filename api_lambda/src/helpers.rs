@@ -69,13 +69,14 @@ pub fn update_state(mut game_state: common::GameState, table_name: String) -> Re
                     ..PutItemInput::default()
                 });
 
-                let duration = start.elapsed();
-                println!("Time elapsed in serialisation is: {:?}", duration);
-
+                
                 if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
                     error!("Error saving state, please try again: {:?}", err);
                     return Err(ActionError::new(&"Error saving state, please try again".to_string()))
                 };
+
+                let duration = start.elapsed();
+                println!("Time elapsed in update_state is: {:?}", duration);
                 Ok(())
             })
         },
