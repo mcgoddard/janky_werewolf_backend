@@ -86,33 +86,34 @@ pub fn get_state(table_name: String, lobby_id: String) -> Result<common::GameSta
         ..Default::default()
     });
 
-    let client = DynamoDbClient::new(Default::default());
-    let item = block_on(client.get_item(GetItemInput {
-        table_name,
-        key: ddb_keys,
-        ..GetItemInput::default()
-    }));
+    DDB.with(|ddb| {
+        let item = ddb.get_item(GetItemInput {
+            table_name,
+            key: ddb_keys,
+            ..GetItemInput::default()
+        });
 
-    match item {
-        Ok(i) => {
-            match i.item.map(serde_dynamodb::from_hashmap) {
-                Some(i) => {
-                    match i {
-                        Ok(gs) => Ok(gs),
-                        Err(e) => {
-                            error!("Game state corrupted: {}", e);
-                            Err(ActionError::new(&"Game state corrupted".to_string()))
-                        },
-                    }
-                },
-                None => Err(ActionError::new(&"Lobby not found".to_string())),
-            }
-        },
-        Err(e) => {
-            error!("Error fetching lobby: {:?}", e);
-            Err(ActionError::new(&"Error fetching lobby".to_string()))
-        },
-    }
+        match block_on(item) {
+            Ok(i) => {
+                match i.item.map(serde_dynamodb::from_hashmap) {
+                    Some(i) => {
+                        match i {
+                            Ok(gs) => Ok(gs),
+                            Err(e) => {
+                                error!("Game state corrupted: {}", e);
+                                Err(ActionError::new(&"Game state corrupted".to_string()))
+                            },
+                        }
+                    },
+                    None => Err(ActionError::new(&"Lobby not found".to_string())),
+                }
+            },
+            Err(e) => {
+                error!("Error fetching lobby: {:?}", e);
+                Err(ActionError::new(&"Error fetching lobby".to_string()))
+            },
+        }
+    })
 }
 
 pub fn check_game_over(players: Vec<common::Player>) -> Option<Vec<common::PlayerTeam>> {

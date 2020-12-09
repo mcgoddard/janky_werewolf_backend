@@ -3,6 +3,7 @@ extern crate serde_derive;
 extern crate simple_logger;
 
 use futures::future::join_all;
+use futures::executor::block_on;
 use bytes::Bytes;
 
 use std::env;
@@ -20,6 +21,13 @@ use lambda::{lambda, Context};
 use common::GameState;
 
 type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
+
+thread_local!(
+    pub static API_GW: ApiGatewayManagementApiClient = ApiGatewayManagementApiClient::new(Region::Custom {
+        name: Region::EuWest2.name().into(),
+        endpoint: endpoint(),
+    });
+);
 
 #[lambda]
 #[tokio::main]
@@ -82,14 +90,12 @@ async fn process_record(record: &common::DDBRecord) {
 }
 
 async fn broadcast(player: common::Player, game_state: common::GameState) -> Result<(), RusotoError<PostToConnectionError>> {
-    let client = ApiGatewayManagementApiClient::new(Region::Custom {
-        name: Region::EuWest2.name().into(),
-        endpoint: endpoint(),
-    });
-    client.post_to_connection(PostToConnectionRequest {
-        connection_id: player.id.clone(),
-        data: Bytes::from(json!({ "game_state": game_state }).to_string()),
-    }).await
+    API_GW.with(|api_gw| {
+        block_on(api_gw.post_to_connection(PostToConnectionRequest {
+            connection_id: player.id.clone(),
+            data: Bytes::from(json!({ "game_state": game_state }).to_string()),
+        }))
+    })
 }
 
 fn filter_state(player: &common::Player, game_state: common::GameState) -> common::GameState {

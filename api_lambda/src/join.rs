@@ -5,11 +5,11 @@ use std::time::Instant;
 
 use rand::Rng;
 use lambda::Context;
-use rusoto_dynamodb::{DynamoDbClient, DynamoDb, PutItemInput};
+use rusoto_dynamodb::{DynamoDb, PutItemInput};
 use futures::executor::block_on;
 
 use crate::ActionError;
-use crate::helpers::{get_state, update_state};
+use crate::helpers::{get_state, update_state, DDB};
 
 #[derive(Deserialize, Serialize, Clone)]
 struct JoinEvent {
@@ -76,21 +76,22 @@ fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret
     let item = serde_dynamodb::to_hashmap(&game_state);
     match item {
         Ok(item) => {
-            let client = DynamoDbClient::new(Default::default());
-            let result = block_on(client.put_item(PutItemInput {
-                table_name,
-                condition_expression: Some("attribute_not_exists(lobby_id)".to_string()),
-                item,
-                ..PutItemInput::default()
-            }));
-        
-            match result {
-                Ok(_) => Ok(()),
-                Err(err) => {
-                    error!("Failed to perform new game connection operation: {:?}", err);
-                    Err(ActionError::new(&"Error creating game, please try again".to_string()))
-                },
-            }
+            DDB.with(|ddb| {
+                let result = ddb.put_item(PutItemInput {
+                    table_name,
+                    condition_expression: Some("attribute_not_exists(lobby_id)".to_string()),
+                    item,
+                    ..PutItemInput::default()
+                });
+            
+                match block_on(result) {
+                    Ok(_) => Ok(()),
+                    Err(err) => {
+                        error!("Failed to perform new game connection operation: {:?}", err);
+                        Err(ActionError::new(&"Error creating game, please try again".to_string()))
+                    },
+                }
+            })
         },
         Err(err) => {
             error!("Failed to create new game state: {:?}", err);

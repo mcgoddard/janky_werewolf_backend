@@ -15,22 +15,22 @@ struct EventData {
     code: String,
 }
 
-pub async fn handle_sleep(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
+pub fn handle_sleep(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: SleepEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = get_state(table_name, event.data.code).await;
+    let current_game = get_state(table_name, event.data.code);
     if let Ok(item) = current_game { 
-        move_to_sleep(e, item).await
+        move_to_sleep(e, item)
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
 }
 
-async fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState) 
+fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState) 
         -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
@@ -63,5 +63,5 @@ async fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_
             data: HashMap::new(),
         };
     }
-    update_state(game_state, table_name).await
+    update_state(game_state, table_name)
 }
