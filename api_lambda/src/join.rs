@@ -1,7 +1,6 @@
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::collections::HashMap;
-use std::time::Instant;
 
 use rand::Rng;
 use lambda::Context;
@@ -102,11 +101,7 @@ fn new_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret
 
 fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secret: String, lobby_id: String) -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
-
-    let start = Instant::now();
     let item = get_state(table_name.clone(), lobby_id);
-    let duration = start.elapsed();
-    println!("Time elapsed getting game state is: {:?}", duration);
 
     if let Ok(item) = item {
         let mut data: common::GameState = item;
@@ -143,11 +138,7 @@ fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secre
         else {
             return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
         }
-        let start = Instant::now();
-        let result = update_state(data, table_name);
-        let duration = start.elapsed();
-        println!("Time elapsed putting game state is: {:?}", duration);
-        result
+        update_state(data, table_name)
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }

@@ -15,7 +15,6 @@ use lambda::{handler_fn, Context};
 use std::fmt;
 use std::error::Error;
 use std::collections::HashMap;
-use std::time::Instant;
 
 use aws_lambda_events::event::apigw::ApiGatewayProxyResponse;
 
@@ -65,7 +64,6 @@ async fn main() -> Result<(), LambdaError> {
 }
 
 async fn handler(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
-    let start = Instant::now();
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: RouteEvent = serde_json::from_str(&body).unwrap();
@@ -80,8 +78,6 @@ async fn handler(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Resu
         "werewolf" => handle_werewolf(e.clone()),
         _ => handle_unknown(event.action),
     };
-    let duration = start.elapsed();
-    println!("Time elapsed in handling is: {:?}", duration);
 
     if let Err(action_error) = error {
         helpers::send_error(format!("Unknown action \"{}\"!", action_error),
