@@ -16,22 +16,22 @@ struct EventData {
     player: String,
 }
 
-pub async fn handle_lynch(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
+pub fn handle_lynch(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: LynchEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = get_state(table_name, event.data.code).await;
+    let current_game = get_state(table_name, event.data.code);
     if let Ok(item) = current_game { 
-        move_to_sleep(e, item, event.data.player).await
+        move_to_sleep(e, item, event.data.player)
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
 }
 
-async fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, lynched_player: String)
+fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, lynched_player: String)
         -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
@@ -101,5 +101,5 @@ async fn move_to_sleep(event: common::ApiGatewayWebsocketProxyRequest, mut game_
             }
         },
     }
-    update_state(game_state, table_name).await
+    update_state(game_state, table_name)
 }

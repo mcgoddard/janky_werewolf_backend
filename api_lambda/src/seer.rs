@@ -16,22 +16,22 @@ struct EventData {
     player: String,
 }
 
-pub async fn handle_seer(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
+pub fn handle_seer(e: common::ApiGatewayWebsocketProxyRequest) -> Result<(), ActionError> {
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
     let event: SleepEvent = serde_json::from_str(&body).unwrap();
     
     let table_name = env::var("tableName").unwrap();
 
-    let current_game = get_state(table_name, event.data.code.clone()).await;
+    let current_game = get_state(table_name, event.data.code.clone());
     if let Ok(item) = current_game { 
-        move_to_werewolf(e, item, event.data.player).await
+        move_to_werewolf(e, item, event.data.player)
     } else {
         Err(ActionError::new(&"Game not found".to_string()))
     }
 }
 
-async fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, see_player_name: String)
+fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, mut game_state: common::GameState, see_player_name: String)
         -> Result<(), ActionError> {
     let table_name = env::var("tableName").unwrap();
 
@@ -74,5 +74,5 @@ async fn move_to_werewolf(event: common::ApiGatewayWebsocketProxyRequest, mut ga
             data: HashMap::new(),
         };
     }
-    update_state(game_state, table_name).await
+    update_state(game_state, table_name)
 }
