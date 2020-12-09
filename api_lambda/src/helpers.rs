@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::time::Instant;
+use std::cell::RefCell;
 
 use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
@@ -8,8 +9,18 @@ use rusoto_core::Region;
 use rusoto_dynamodb::{DynamoDb, DynamoDbClient, AttributeValue, PutItemInput, GetItemInput};
 use serde_json::json;
 use futures::executor::block_on;
+use tokio::runtime::Runtime;
 
 use crate::ActionError;
+
+thread_local!(
+    pub static DDB: DynamoDbClient = DynamoDbClient::new(Default::default());
+);
+
+thread_local!(
+    pub static RT: RefCell<Runtime> =
+        RefCell::new(Runtime::new().expect("failed to initialize runtime"));
+);
 
 pub fn send_error(message: String, connection_id: String, endpoint: String) {
     let client = ApiGatewayManagementApiClient::new(Region::Custom {
@@ -49,25 +60,24 @@ pub fn update_state(mut game_state: common::GameState, table_name: String) -> Re
     let item = serde_dynamodb::to_hashmap(&game_state);
     match item {
         Ok(item) => {
-            let client = DynamoDbClient::new(Default::default());
-            let result = block_on(client.put_item(PutItemInput {
-                table_name,
-                condition_expression: Some(condition_expression),
-                item,
-                expression_attribute_values: Some(attribute_values),
-                ..PutItemInput::default()
-            }));
-        
-            let duration = start.elapsed();
-            println!("Time elapsed in serialisation is: {:?}", duration);
-        
-            match result {
-                Ok(_) => Ok(()),
-                Err(err) => {
+            DDB.with(|ddb| {
+                let result = ddb.put_item(PutItemInput {
+                    table_name,
+                    condition_expression: Some(condition_expression),
+                    item,
+                    expression_attribute_values: Some(attribute_values),
+                    ..PutItemInput::default()
+                });
+
+                let duration = start.elapsed();
+                println!("Time elapsed in serialisation is: {:?}", duration);
+
+                if let Err(err) = RT.with(|rt| rt.borrow_mut().block_on(result)) {
                     error!("Error saving state, please try again: {:?}", err);
-                    Err(ActionError::new(&"Error saving state, please try again".to_string()))
-                },
-            }
+                    return Err(ActionError::new(&"Error saving state, please try again".to_string()))
+                };
+                Ok(())
+            })
         },
         Err(err) => {
             error!("Error saving state, please try again: {:?}", err);
