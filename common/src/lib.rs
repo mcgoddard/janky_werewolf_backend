@@ -5,13 +5,10 @@ use std::collections::HashMap;
 use serde::ser::Serialize;
 use serde::de::{Deserialize, Deserializer, DeserializeOwned};
 use serde_json::Value;
-use dynomite::{
-    Attributes, Attribute, Item,
-};
 
 use aws_lambda_events::event::apigw::ApiGatewayRequestIdentity;
 
-#[derive(Attribute, Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum PlayerRole {
     Unknown,
     Villager,
@@ -23,7 +20,7 @@ pub enum PlayerRole {
     Tanner,
 }
 
-#[derive(Attribute, Deserialize, Serialize, Clone, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Clone, PartialEq, Debug)]
 pub enum PlayerTeam {
     Unknown,
     Good,
@@ -32,7 +29,7 @@ pub enum PlayerTeam {
     Mod,
 }
 
-#[derive(Attributes, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PlayerAttributes {
     pub role: PlayerRole,
     pub team: PlayerTeam,
@@ -40,7 +37,7 @@ pub struct PlayerAttributes {
     pub visible_to: Vec<String>,
 }
 
-#[derive(Attributes, Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Player {
     pub id: String,
     pub name: String,
@@ -48,7 +45,7 @@ pub struct Player {
     pub attributes: PlayerAttributes,
 }
 
-#[derive(Attribute, Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
 pub enum PhaseName {
     Lobby,
     Day,
@@ -105,16 +102,15 @@ pub struct DDBStreamEvent {
     pub records: Option<Vec<DDBRecord>>,
 }
 
-#[derive(Attributes, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Phase {
     pub name: PhaseName,
     pub data: HashMap<String, String>,
 }
 
-#[derive(Item, Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameState {
-    #[serde(rename(serialize = "lobbyId"))]
-    #[dynomite(partition_key)]
+    #[serde(rename = "lobbyId")]
     pub lobby_id: String,
     pub phase: Phase,
     pub players: Vec<Player>,

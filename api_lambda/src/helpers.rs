@@ -5,12 +5,8 @@ use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
 };
 use rusoto_core::Region;
+use rusoto_dynamodb::{DynamoDb, DynamoDbClient, AttributeValue, PutItemInput, GetItemInput};
 use serde_json::json;
-use dynomite::{
-    dynamodb::{
-        DynamoDb, DynamoDbClient, PutItemInput, AttributeValue, GetItemInput,
-    }, FromAttributes
-};
 use futures::executor::block_on;
 
 use crate::ActionError;
@@ -50,24 +46,33 @@ pub fn update_state(mut game_state: common::GameState, table_name: String) -> Re
         ..Default::default()
     });
     let start = Instant::now();
-    let item = game_state.into();
-    let duration = start.elapsed();
-    println!("Time elapsed in serialisation is: {:?}", duration);
-    let ddb = DynamoDbClient::new(Default::default());
-    let result = block_on(ddb.put_item(PutItemInput {
-            table_name,
-            condition_expression: Some(condition_expression),
-            item,
-            expression_attribute_values: Some(attribute_values),
-            ..PutItemInput::default()
-        }));
-
-    match result {
-        Ok(_) => Ok(()),
+    let item = serde_dynamodb::to_hashmap(&game_state);
+    match item {
+        Ok(item) => {
+            let client = DynamoDbClient::new(Default::default());
+            let result = block_on(client.put_item(PutItemInput {
+                table_name,
+                condition_expression: Some(condition_expression),
+                item,
+                expression_attribute_values: Some(attribute_values),
+                ..PutItemInput::default()
+            }));
+        
+            let duration = start.elapsed();
+            println!("Time elapsed in serialisation is: {:?}", duration);
+        
+            match result {
+                Ok(_) => Ok(()),
+                Err(err) => {
+                    error!("Error saving state, please try again: {:?}", err);
+                    Err(ActionError::new(&"Error saving state, please try again".to_string()))
+                },
+            }
+        },
         Err(err) => {
             error!("Error saving state, please try again: {:?}", err);
             Err(ActionError::new(&"Error saving state, please try again".to_string()))
-        },
+        }
     }
 }
 
@@ -78,8 +83,8 @@ pub fn get_state(table_name: String, lobby_id: String) -> Result<common::GameSta
         ..Default::default()
     });
 
-    let ddb = DynamoDbClient::new(Default::default());
-    let item = block_on(ddb.get_item(GetItemInput {
+    let client = DynamoDbClient::new(Default::default());
+    let item = block_on(client.get_item(GetItemInput {
         table_name,
         key: ddb_keys,
         ..GetItemInput::default()
@@ -87,7 +92,7 @@ pub fn get_state(table_name: String, lobby_id: String) -> Result<common::GameSta
 
     match item {
         Ok(i) => {
-            match i.item.map(common::GameState::from_attrs) {
+            match i.item.map(serde_dynamodb::from_hashmap) {
                 Some(i) => {
                     match i {
                         Ok(gs) => Ok(gs),
