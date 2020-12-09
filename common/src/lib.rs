@@ -110,7 +110,6 @@ pub struct Phase {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct GameState {
-    #[serde(rename = "lobbyId")]
     pub lobby_id: String,
     pub phase: Phase,
     pub players: Vec<Player>,
