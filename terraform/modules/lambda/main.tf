@@ -13,7 +13,7 @@ resource "aws_lambda_function" "lambda" {
   role    = var.iam_role_arn
   handler = "${var.lambda_name}.lambda_handler"
   runtime = "provided"
-  memory_size = 256
+  memory_size = 128
 
   environment {
     variables = {
