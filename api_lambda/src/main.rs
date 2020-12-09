@@ -6,8 +6,11 @@ extern crate log;
 extern crate simple_logger;
 extern crate rand;
 extern crate tokio;
+extern crate rusoto_core;
+extern crate rusoto_dynamodb;
+extern crate serde_dynamodb;
 
-use lambda::{handler_fn, Context};
+use lambda::{lambda, Context};
 
 use std::fmt;
 use std::error::Error;
@@ -51,14 +54,9 @@ struct RouteEvent {
 
 type LambdaError = Box<dyn std::error::Error + Send + Sync + 'static>;
 
+#[lambda]
 #[tokio::main]
-async fn main() -> Result<(), LambdaError> {
-    let func = handler_fn(handler);
-    lambda::run(func).await?;
-    Ok(())
-}
-
-async fn handler(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
+async fn main(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Result<ApiGatewayProxyResponse, LambdaError> {
     let start = Instant::now();
     let body = e.body.clone().unwrap();
     info!("{:?}", body);
