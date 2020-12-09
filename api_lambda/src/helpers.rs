@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::time::Instant;
 
 use rusoto_apigatewaymanagementapi::{
     ApiGatewayManagementApi, ApiGatewayManagementApiClient, PostToConnectionRequest,
@@ -49,7 +48,6 @@ pub fn update_state(mut game_state: common::GameState, table_name: String) -> Re
         n: Some(game_state.version.to_string()),
         ..Default::default()
     });
-    let start = Instant::now();
     let item = serde_dynamodb::to_hashmap(&game_state);
     match item {
         Ok(item) => {
@@ -66,9 +64,6 @@ pub fn update_state(mut game_state: common::GameState, table_name: String) -> Re
                     error!("Error saving state, please try again: {:?}", err);
                     return Err(ActionError::new(&"Error saving state, please try again".to_string()))
                 };
-
-                let duration = start.elapsed();
-                println!("Time elapsed in update_state is: {:?}", duration);
                 Ok(())
             })
         },
