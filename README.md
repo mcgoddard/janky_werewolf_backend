@@ -1,5 +1,5 @@
 # JankyWerewolf backend code
-This is the backend code for the JankyWerewolf service, the frontend of which is available @ https://www.jankywerewolf.co.uk/.
+This is the backend code for the JankyWerewolf service, the [frontend](https://www.jankywerewolf.co.uk/) is maintained by [Ripixel](https://github.com/ripixel/janky-werewolf-client).
 
 The service is made up of a number of AWS lambda functions, written in Rust and backed by a dynamodb table. The API is built using API Gateway and is not currently defined in this codebase (as the Terraform AWS provider does not support Websockets on API Gateway). Hopefully this will change in the future.
 
