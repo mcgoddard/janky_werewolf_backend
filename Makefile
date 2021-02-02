@@ -39,5 +39,5 @@ install:
 
 ci_install:
 	apt update && apt install -y libfindbin-libs-perl musl-tools
-	rustup component add clippy --toolchain 1.48.0-x86_64-unknown-linux-gnu
+	rustup component add clippy --toolchain x86_64-unknown-linux-musl
 	rustup target add x86_64-unknown-linux-musl
