@@ -103,45 +103,44 @@ fn join_game(event: common::ApiGatewayWebsocketProxyRequest, name: String, secre
     let table_name = env::var("tableName").unwrap();
     let item = get_state(table_name.clone(), lobby_id);
 
-    if let Ok(item) = item {
-        let mut data: common::GameState = item;
-        let existing_player: Vec<common::Player> = data.players.clone().into_iter().filter(|player| player.name == name).collect();
-        if existing_player.len() == 1 {
-            if existing_player[0].secret == secret {
-                let mut new_players = data.players.clone();
-                new_players.retain(|player| player.name != name);
-                new_players.push(common::Player{
-                    id: event.request_context.connection_id.unwrap(),
-                    name,
-                    secret,
-                    attributes: existing_player[0].attributes.clone(),
-                });
-                data.players = new_players;
-            }
-            else {
-                error!("Non-matching secret for {:?}", name);
-            }
-        }
-        else if data.phase.name == common::PhaseName::Lobby {
-            data.players.push(common::Player{
+    if let Err(_e) = item {
+        return Err(ActionError::new(&"Game not found".to_string()))
+    }
+    let mut data: common::GameState = item.unwrap();
+    let existing_player: Vec<common::Player> = data.players.clone().into_iter().filter(|player| player.name == name).collect();
+    if existing_player.len() == 1 {
+        if existing_player[0].secret == secret {
+            let mut new_players = data.players.clone();
+            new_players.retain(|player| player.name != name);
+            new_players.push(common::Player{
                 id: event.request_context.connection_id.unwrap(),
                 name,
                 secret,
-                attributes: common::PlayerAttributes {
-                    role: common::PlayerRole::Unknown,
-                    team: common::PlayerTeam::Unknown,
-                    alive: true,
-                    visible_to: vec!["All".to_string()],
-                },
+                attributes: existing_player[0].attributes.clone(),
             });
+            data.players = new_players;
         }
         else {
-            return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
+            error!("Non-matching secret for {:?}", name);
         }
-        update_state(data, table_name)
-    } else {
-        Err(ActionError::new(&"Game not found".to_string()))
     }
+    else if data.phase.name == common::PhaseName::Lobby {
+        data.players.push(common::Player{
+            id: event.request_context.connection_id.unwrap(),
+            name,
+            secret,
+            attributes: common::PlayerAttributes {
+                role: common::PlayerRole::Unknown,
+                team: common::PlayerTeam::Unknown,
+                alive: true,
+                visible_to: vec!["All".to_string()],
+            },
+        });
+    }
+    else {
+        return Err(ActionError::new(&"Error cannot join an in-progress game".to_string()))
+    }
+    update_state(data, table_name)
 }
 
 fn create_random_code() -> String {
