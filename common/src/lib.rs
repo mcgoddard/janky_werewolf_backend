@@ -261,6 +261,7 @@ where
 {
     match Option::deserialize(deserializer)? {
         Some(s) => {
+            let s: String = s;
             if s.is_empty() {
                 Ok(None)
             } else {
