@@ -261,7 +261,7 @@ where
 {
     match Option::deserialize(deserializer)? {
         Some(s) => {
-            if s == "" {
+            if s.is_empty() {
                 Ok(None)
             } else {
                 Ok(Some(s))
