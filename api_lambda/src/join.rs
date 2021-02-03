@@ -28,11 +28,11 @@ pub fn handle_join(e: common::ApiGatewayWebsocketProxyRequest, c: Context) -> Re
     info!("{:?}", body);
     let p: JoinEvent = serde_json::from_str(&body).unwrap();
     
-    if p.data.name == "" {
+    if p.data.name.is_empty() {
         error!("Empty name in request {}", c.request_id);
         return Err(ActionError::new(&"Empty first name".to_string()));
     }
-    else if p.data.secret == "" {
+    else if p.data.secret.is_empty() {
         error!("Empty secret in request {}", c.request_id);
         return Err(ActionError::new(&"Empty secret".to_string()));
     }
